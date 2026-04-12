@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* ── Azules → paleta principal HealthPlus ── */
+  --color-blue-50:  #EAF2F8;
+  --color-blue-100: #D0E4F5;
+  --color-blue-200: #A3C8EC;
+  --color-blue-300: #619CD0;
+  --color-blue-400: #3E74B5;
+  --color-blue-500: #2F80D1;
+  --color-blue-600: #2C5FA3;
+  --color-blue-700: #244F88;
+  --color-blue-800: #1a3a66;
+  --color-blue-900: #122644;
+
+  /* ── Verdes → éxito / aprobados ── */
+  --color-green-50:  #f0f9f5;
+  --color-green-100: #c8e8d8;
+  --color-green-200: #a8d9c0;
+  --color-green-300: #87c9a8;
+  --color-green-400: #6BB58E;
+  --color-green-500: #6BB58E;
+  --color-green-600: #4a9a6a;
+  --color-green-700: #2d6b50;
+  --color-green-800: #1f4d3a;
+  --color-green-900: #153628;
+
+  /* ── Naranjas → advertencia / pendientes ── */
+  --color-orange-50:  #fdf6e3;
+  --color-orange-100: #faecc0;
+  --color-orange-200: #f5dfa0;
+  --color-orange-300: #eece80;
+  --color-orange-400: #E9BC62;
+  --color-orange-500: #D4A040;
+  --color-orange-600: #b88020;
+  --color-orange-700: #8a6010;
+  --color-orange-800: #5e4008;
+
+  /* ── Rojos → peligro / rechazados ── */
+  --color-red-50:  #fef0f2;
+  --color-red-100: #fcd0d5;
+  --color-red-200: #f9a8b4;
+  --color-red-300: #f47d90;
+  --color-red-400: #E45469;
+  --color-red-500: #c01234;
+  --color-red-600: #9a0f2a;
+  --color-red-700: #780b20;
+  --color-red-800: #540816;
+
+  /* ── Amarillos → badge advertencia ── */
+  --color-yellow-50:  #fdf6e3;
+  --color-yellow-100: #faecc0;
+  --color-yellow-200: #f5dfa0;
+  --color-yellow-400: #E9BC62;
+  --color-yellow-500: #E9BC62;
+  --color-yellow-600: #c99a30;
+  --color-yellow-700: #a07820;
+  --color-yellow-800: #8a6a1a;
+
+  /* ── Púrpuras → turquesa marca (brand teal) ── */
+  --color-purple-50:  #f0f7f7;
+  --color-purple-100: #c8e5e3;
+  --color-purple-200: #9cc4b4;
+  --color-purple-300: #80b8b2;
+  --color-purple-400: #66B6B0;
+  --color-purple-500: #66B6B0;
+  --color-purple-600: #4a8f8a;
+  --color-purple-700: #3d7a77;
+  --color-purple-800: #3d7a77;
+
+  /* ── Grises → neutrales HealthPlus ── */
+  --color-gray-50:  #EEF1F6;
+  --color-gray-100: #E5EAF1;
+  --color-gray-200: #D9E2EC;
+  --color-gray-300: #B8C5D6;
+  --color-gray-400: #A3B3CA;
+  --color-gray-500: #7A8798;
+  --color-gray-600: #4E6A8F;
+  --color-gray-700: #4B5563;
+  --color-gray-800: #2C3E50;
+  --color-gray-900: #1a2533;
+}
+
+body {
+  background-color: #EEF1F6;
+  color: #4B5563;
+  font-family: var(--font-sans);
+}
