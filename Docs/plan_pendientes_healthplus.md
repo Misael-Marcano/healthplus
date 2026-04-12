@@ -1,13 +1,45 @@
 # Plan de pendientes — HealthPlus (seguimiento vivo)
 
-**Última actualización:** 2026-04-11 — Requisitos: estados configurables, comentarios, adjuntos PDF/Word, filtros; reportes CSV/PDF detallados; plan sincronizado con código.
+**Última actualización:** 2026-04-11 — bandeja **`GET /api/notifications/inbox`** (validaciones + comentarios/adjuntos recientes para admin/analista); campana actualizada; e2e; doc despliegue.
 
 **Cómo usar:** marca `[x]` cuando un ítem quede cumplido. Añade fecha breve al final de la línea si ayuda al equipo (ej. `— 2026-04-15`).
 
 ---
 
-## Leyenda de prioridad
+## Cumplimiento — Requisitos funcionales (2.1)
 
+Referencia: acciones y procesos que el sistema debe realizar. Estado frente a la implementación actual (`backend` NestJS + TypeORM, `frontend` Next.js).
+
+| # | Requisito (resumen) | Estado | Evidencia en producto |
+|---|----------------------|--------|-------------------------|
+| 1 | Registro de requisitos: nombre, descripción, tipo y responsable | **Cumplido** | Alta en **Requisitos** (`titulo` equivale al nombre del ítem), `descripcion`, `tipo` funcional/no funcional, `responsable` y proyecto; `codigo` autogenerado. API `POST /api/requirements`. |
+| 2 | Clasificación en funcionales y no funcionales | **Cumplido** | Campo `tipo` y filtros en listado. |
+| 3 | Priorización según criterios (alto, medio, bajo) | **Cumplido** *(ampliado)* | Prioridad `critica` \| `alta` \| `media` \| `baja` más matriz persistida **impacto / urgencia / esfuerzo / valor** (1–5) y pantalla **Priorización**. |
+| 4 | Gestión de cambios: registrar modificaciones | **Cumplido** | Actualización de requisitos; **auditoría** (`audit_logs`, acciones como `CREAR_REQUISITO` / cambios); historial de versiones con motivo. |
+| 5 | Historial de versiones por requisito | **Cumplido** | Entidad `requirement_versions`; API `GET/POST /api/requirements/:id/versions`; UI en detalle del requisito. |
+| 6 | Validación y aprobación por stakeholders internos | **Cumplido** | `requirement_validations`, roles en validación; pantalla **Validación** y flujos según `Docs/roles_por_usuario` / matriz de API. |
+| 7 | Reportes del estado y progreso de requisitos | **Cumplido** | **Reportes**: KPIs, CSV resumen, CSV/PDF detallado de requisitos (`GET /api/reports/requirements-detail`). |
+| 8 | Consulta y búsqueda rápida y organizada | **Cumplido** | Listado con **búsqueda** (código, título, proyecto, solicitante, responsable), filtros por proyecto, estado, prioridad y tipo; paginación. |
+
+---
+
+## Cumplimiento — Requisitos no funcionales (2.2)
+
+Referencia: calidad y restricciones de operación.
+
+| # | Requisito (resumen) | Estado | Notas |
+|---|----------------------|--------|--------|
+| 1 | Interfaz fácil de usar e intuitiva (incl. no técnicos) | **Parcial** | UI en español, flujos por rol, diseño unificado; mejoras continuas en **P3/P4** (toasts, a11y ampliada). |
+| 2 | Seguridad: solo usuarios autorizados | **Cumplido** | JWT, cookies de sesión en web, `RolesGuard` / `@Roles()`, middleware de rutas; revisión puntual de endpoints en **P4**. |
+| 3 | Buen rendimiento: carga rápida de información y reportes | **Parcial** | React Query, exportaciones en cliente; sin SLA ni pruebas de carga documentadas. |
+| 4 | Escalable ante nuevos proyectos de la clínica | **Parcial** | Arquitectura modular y multi-proyecto; escalado horizontal = **ops** (BD, despliegue). |
+| 5 | Compatible con navegadores web modernos | **Cumplido** | Stack actual (Next.js 16, ES moderno); objetivo: últimas versiones de Chrome/Edge/Firefox/Safari. |
+| 6 | Alta disponibilidad en jornada laboral | **Pendiente (ops)** | Depende de hosting, réplicas, backups y monitorización; no es función de la app en sí. Ver **P4 — Operación**. |
+| 7 | Trazabilidad de requisitos desde creación hasta validación final | **Cumplido** | Auditoría, versiones, validaciones, comentarios y adjuntos enlazados al requisito. |
+
+---
+
+## Leyenda de prioridad
 
 | Nivel  | Significado                                                            |
 | ------ | ---------------------------------------------------------------------- |
@@ -16,7 +48,6 @@
 | **P2** | Mejora importante de producto o operación                              |
 | **P3** | Pulido, nice-to-have                                                   |
 | **P4** | Backlog — completitud producto, producción y endurecimiento              |
-
 
 ---
 
@@ -31,7 +62,7 @@
 ## P1 — Seguridad y permisos en la web
 
 - [x] **Ocultar o deshabilitar** entradas de menú y acciones (CRUD, usuarios, configuración sensible) según `user.rol`, alineado con el backend. — `lib/permissions.ts`, `Sidebar`, botones en dashboard/requisitos/proyectos; `RequireRole` en usuarios/auditoría/configuración
-- [x] **Middleware de Next.js** (o equivalente) para proteger rutas del área autenticada y evitar acceso solo por cliente. — `src/middleware.ts` + cookie `hp_authenticated` + migración de sesión en `/login`
+- [x] **Middleware de Next.js** (o equivalente) para proteger rutas del área autenticada y evitar acceso solo por cliente. — `src/proxy.ts` (Next 16) + cookie `hp_authenticated` + migración de sesión en `/login`
 - [x] **Manejo de 403** desde la API: mensaje claro y redirección o pantalla de “sin permiso”. — `lib/api.ts` + `/sin-permiso`
 
 ---
@@ -87,39 +118,39 @@
 
 ### Operación y despliegue
 
-- [ ] **SMTP / envío de correo** en producción para recuperación de contraseña y (opcional) notificaciones transaccionales.
-- [ ] **Migraciones de base de datos** versionadas (sustituir o complementar `synchronize` de TypeORM en SQL Server); incluir tablas nuevas (`requirement_status_defs`, `requirement_comments`, `requirement_attachments`) si se despliega sin `synchronize`.
-- [ ] **Documentación de despliegue**: variables de entorno (`FRONTEND_URL`, `UPLOAD_DIR`, BD, JWT), backup/restauración BD, checklist de go-live, **respaldo/copia de carpeta `uploads`** para adjuntos.
-- [ ] **Secretos y configuración** solo en servidor o gestor de secretos (sin credenciales en repositorio).
+- [x] **SMTP / envío de correo** — `MailModule` + Nodemailer; `POST /auth/forgot-password` envía correo si `SMTP_*` en env o SMTP configurado en **Configuración del sistema** (host no vacío). En desarrollo, si el envío no ocurre, se mantiene `resetUrl` / `debugToken` en la respuesta.
+- [x] **Migraciones de base de datos** — carpeta `src/database/migrations`, `data-source.ts`, `npm run migration:run`, migración inicial vacía (baseline); `RUN_MIGRATIONS_ON_BOOT` opcional en `app.module`. Generar migraciones incrementales con `migration:generate` cuando exista CLI/BD de referencia (ver TypeORM 0.3).
+- [x] **Documentación de despliegue** — `Docs/despliegue.md` (variables, SMTP dual, backups, checklist); `backend/.env.example` actualizado. *(Secretos: política descrita; cumplimiento = proceso de equipo.)*
+- [x] **Secretos y configuración** — guía en `Docs/despliegue.md`: no commitear `.env` real, secretos en orquestador, rotación de JWT; cumplimiento operativo = proceso de equipo.
+- [x] **Alta disponibilidad / continuidad** (RNF 2.2 ítem 6) — orientación en `Docs/despliegue.md` (SLA, `GET /api`, réplicas stateless, SQL Server, migraciones, backups); acuerdo y despliegue real = **ops**.
 
 ### Seguridad avanzada
 
 - [x] **`@Roles()` en API de dominio** alineado con `Docs/roles por usuario.png` — requisitos, proyectos, versiones: `administrador`, `analista`; reportes: `administrador`, `analista`, `gerencia`, `consulta`; validación: lectura `administrador`, `analista`, `stakeholder`; solicitar `administrador`, `analista`; aprobar/rechazar/comentar `administrador`, `stakeholder`.
-- [ ] **Revisión de endpoints restantes** (auth público excluido) y pruebas manuales / automatizadas con tokens por rol (incl. adjuntos y `requirement-statuses`).
+- [ ] **Revisión de endpoints restantes** — automatizado: `test/app.e2e-spec.ts` (`E2E_INTEGRATION=1`) con roles seed, adjuntos GET/POST PDF, **400** MIME inválido, **`GET /api/settings`**, **`GET /api/notifications/inbox`** (401 / 200 admin / 200 stakeholder), **`GET /api/audit`** (200 admin / 403 stakeholder). Pendiente: otras rutas bajo criterio de equipo.
 - [ ] **Opcional:** validación más estricta de sesión en borde (p. ej. proxy Next) según política de amenaza.
 
 ### Producto y UX
 
-- [ ] **Notificaciones in-app** (campana con datos reales) o emails según eventos (validación pendiente, cambio de estado, nuevo comentario/adjunto).
+- [ ] **Notificaciones** — campana con **`GET /notifications/inbox`** (`unreadCount`, ítems con `read`) y **`POST /notifications/mark-read`**; tabla `notification_reads`. Al abrir el panel se marcan como leídas las mostradas; el badge usa solo no leídas. Validaciones + (admin/analista) comentarios/adjuntos recientes. **Correo** al solicitar validación (SMTP + `FRONTEND_URL`). Pendiente: otros eventos (auditoría, `@`) u otros correos.
 - [x] **PDF export “real” para datos tabulares** — PDF detallado de requisitos en Reportes (`jspdf-autotable`). La vista gráfica sigue pudiendo imprimirse con **Imprimir vista** (`window.print()`).
-- [ ] **Incluir en exportaciones** (opcional negocio): columnas de conteo de adjuntos o nombres de archivos en CSV/PDF detallado; hoy el detalle cubre campos del requisito, no lista de adjuntos.
-- [ ] **Toasts de éxito** en más mutaciones (patrón `meta` o helpers); iniciado en validación (`useValidate`).
-- [ ] **Accesibilidad** ampliada: tablas, modales, foco, contraste en vistas frecuentes.
+- [x] **Incluir en exportaciones** — CSV/PDF detallado incluyen `adjuntosCount` y `adjuntosNombres` (nombres separados por `; `). Backend `GET /reports/requirements-detail` agrega datos desde `requirement_attachments`.
+- [x] **Toasts de éxito** — Requisitos (crear/editar/eliminar), proyectos, usuarios, comentarios, adjuntos (subir/eliminar), nueva versión, configuración del sistema; validación ya tenía toasts (`useValidate` / `useRequestValidation`).
+- [ ] **Accesibilidad** ampliada: **tablas** (captions + `scope`); **Reportes** + **Validación** (filtros: `role="group"`, `aria-pressed`, `aria-label`); botones solo icono en tablas principales; topbar; **Sidebar** (`aria-current="page"`, `nav` etiquetado); **Dashboard** (region métricas + `sr-only` heading, iconos decorativos). **Contraste:** paginación requisitos. Pendiente: más vistas / grises. **Modales** `Modal`: dialog ARIA, Escape, foco. *(Ref. RNF usabilidad §2.2.)*
 
 ### Calidad técnica
 
-- [ ] **Pruebas e2e o de API** para flujos críticos (login, CRUD requisito, validación, subida/descarga adjunto).
-- [ ] **Migrar convención** `middleware` → **proxy** de Next.js cuando se actualice la guía del proyecto (aviso en build 16).
+- [x] **Pruebas e2e o de API** — `test/app.e2e-spec.ts`: salud, login, admin (adjuntos GET/POST PDF + **400** MIME inválido + **`GET /settings`** + **`GET /audit`** + **`GET /notifications/inbox`**); stakeholder (`/notifications/inbox`); gerencia/consulta; seeds demo. `E2E_INTEGRATION=1` + SQL Server.
+- [x] **Migrar convención** `middleware` → **proxy** — `src/proxy.ts`, export `proxy()`; mismo matcher y lógica de auth. *(Next 16.)*
 
 ### Producto — posibles extensiones (no bloqueantes)
 
-- [ ] **Listado de requisitos**: columna o badge con número de adjuntos sin abrir el detalle.
-- [ ] **Permisos por rol**: evaluar si `gerencia`/`consulta` deben solo lectura en requisitos con adjuntos (hoy CRUD requisitos sigue siendo admin/analista según matriz).
+- [x] **Listado de requisitos**: columna con conteo de adjuntos (API: `loadRelationCountAndMap` en `GET /requirements`).
+- [ ] **Permisos por rol**: evaluar si `gerencia`/`consulta` deben solo lectura en requisitos con adjuntos (hoy **no** tienen `GET /requirements`; solo reportes; e2e documenta 403 gerencia en listado de requisitos).
 
 ---
 
 ## Registro de avance (opcional)
-
 
 | Fecha | Ítem cerrado (referencia corta) |
 | ----- | -------------------------------- |
@@ -129,18 +160,33 @@
 | 2026-04-11 | P3 not-found + error boundary, toasts mutaciones, metadatos por segmento, a11y login + skip link |
 | 2026-04-11 | P4 `@Roles` en requirements, projects, reports, validation, versions; toast éxito en `useValidate` |
 | 2026-04-11 | P2 estados configurables + comentarios + API/reportes detalle; P2 adjuntos PDF/Word + pestañas UI; filtro estado reforzado; PDF detallado reportes |
-
+| 2026-04-12 | Revisión cumplimiento §2.1 / §2.2; matriz en documento; P4 ops vinculado a RNF alta disponibilidad |
+| 2026-04-12 | P4: adjuntos en export detalle + columna conteo en tabla requisitos + toasts éxito en hooks principales |
+| 2026-04-12 | P4: correo recuperación contraseña (Nodemailer), `MailModule`, `Docs/despliegue.md`, `.env.example` SMTP |
+| 2026-04-12 | P4: migraciones TypeORM baseline + `migration:run`; e2e API con `E2E_INTEGRATION=1`; `AppController` health público |
+| 2026-04-11 | Notificación por correo al solicitar validación (`MailService.sendValidationRequestedEmail`) |
+| 2026-04-11 | Front: `middleware.ts` → `proxy.ts`; `Modal` con patrón dialog (ARIA, Escape, foco) |
+| 2026-04-11 | Tablas dashboard: captions + `scope` col/row en vistas frecuentes |
+| 2026-04-11 | `aria-label` en acciones tabla requisitos/proyectos/usuarios; paginación requisitos |
+| 2026-04-11 | e2e API: rutas protegidas + rol stakeholder; seed stakeholder demo; política secretos despliegue |
+| 2026-04-11 | Seed gerencia demo + e2e matriz reportes/requisitos; Reportes `aria-label` exportación |
+| 2026-04-11 | Seed consulta + e2e adjuntos + consulta/reportes |
+| 2026-04-11 | e2e POST multipart adjunto PDF |
+| 2026-04-11 | e2e adjunto MIME inválido; HA en despliegue; a11y filtros Validación |
+| 2026-04-11 | e2e `GET /api/settings` (401/200) y `GET /api/audit` (200/403); a11y Sidebar + Dashboard |
+| 2026-04-11 | `GET /api/notifications/inbox` + campana (comentarios/adjuntos admin-analista); e2e inbox |
 
 ---
 
 ## Resumen: hecho vs pendiente (rápido)
 
-| Área | Hecho (alto nivel) | Pendiente principal |
-| ---- | ------------------- | --------------------- |
-| Requisitos | Estados CRUD, comentarios, adjuntos, filtros | Opcional: adjuntos en export, contador en tabla |
-| Reportes | CSV resumen, CSV/PDF detalle requisitos | — |
-| Ops | — | SMTP prod, migraciones, docs deploy, backups `uploads` |
-| UX/A11y/QA | Base + PDF datos | Toasts éxito ampliados, a11y profunda, e2e |
+| Área | §2.1 / §2.2 | Hecho (alto nivel) | Pendiente principal |
+| ---- | ------------ | ------------------- | --------------------- |
+| Alcance funcional | RF 1–8 | Registro, tipos, priorización ampliada, cambios, versiones, validación, reportes, búsqueda/filtros | — |
+| No funcional | RNF 1–7 | Seguridad por rol, trazabilidad, navegadores modernos, feedback más visible en mutaciones | Usabilidad/UX y a11y en profundidad; rendimiento medido; escalado y **HA** en ops |
+| Requisitos (producto) | — | Estados, comentarios, adjuntos, filtros, contador adjuntos en tabla | — |
+| Reportes | — | CSV resumen, CSV/PDF detalle (incl. adjuntos) | — |
+| Ops | RNF 6 | SMTP, guía despliegue, migraciones, e2e, orientación HA/backups en doc | Backups/restauración ejecutados en prod (proceso) |
 
 ---
 

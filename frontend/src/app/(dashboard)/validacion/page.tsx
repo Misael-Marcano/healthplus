@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,12 @@ import {
   CheckCircle, XCircle, MessageSquare, Clock,
   CheckCircle2, Loader2, SendHorizonal,
 } from "lucide-react";
-import { usePendingValidations, useValidate, useRequestValidation } from "@/hooks/useValidation";
+import {
+  useMyValidations,
+  usePendingRequirementIds,
+  useValidate,
+  useRequestValidation,
+} from "@/hooks/useValidation";
 import { useRequirements } from "@/hooks/useRequirements";
 import { useUserLookup } from "@/hooks/useUsers";
 import { useAuth } from "@/context/AuthContext";
@@ -25,6 +30,7 @@ interface ValidationRecord {
   creadoEn: string;
   requisito: { id: number; codigo: string; titulo: string; proyecto?: { nombre: string } };
   solicitante?: { nombre: string };
+  validador?: { id: number; nombre: string };
 }
 
 const estadoConfig: Record<ValidationRecord["estado"], { label: string; variant: "success" | "warning" | "default" | "gray" | "danger" | "purple"; icon: React.ElementType }> = {
@@ -36,8 +42,8 @@ const estadoConfig: Record<ValidationRecord["estado"], { label: string; variant:
 
 export default function ValidacionPage() {
   const { user } = useAuth();
-  const puedeValidar = canValidateRequirements(user?.rol);
-  const puedeSolicitar = canSolicitarValidacion(user?.rol);
+  const puedeValidar = canValidateRequirements(user?.rol, user?.permisos);
+  const puedeSolicitar = canSolicitarValidacion(user?.rol, user?.permisos);
 
   const [filtro,    setFiltro]    = useState<ValidationRecord["estado"] | "todos">("todos");
   const [selected,  setSelected]  = useState<ValidationRecord | null>(null);
@@ -49,9 +55,26 @@ export default function ValidacionPage() {
   const [reqId,       setReqId]       = useState("");
   const [validadorId, setValidadorId] = useState("");
 
-  const { data: validaciones = [], isLoading } = usePendingValidations() as { data: ValidationRecord[]; isLoading: boolean };
-  const { data: requisitos = [] }              = useRequirements({ enabled: puedeSolicitar });
-  const { data: usuarios   = [] }              = useUserLookup();
+  const { data: validaciones = [], isLoading } = useMyValidations() as {
+    data: ValidationRecord[];
+    isLoading: boolean;
+  };
+  const { data: requisitos = [] } = useRequirements({ enabled: puedeSolicitar });
+  const { data: usuarios = [] } = useUserLookup();
+  const { data: pendingReqIds = [] } = usePendingRequirementIds({
+    enabled: puedeSolicitar && modalSolicitar,
+  });
+  const requisitosSolicitables = useMemo(
+    () => requisitos.filter((r) => !pendingReqIds.includes(r.id)),
+    [requisitos, pendingReqIds],
+  );
+
+  useEffect(() => {
+    if (!reqId) return;
+    if (!requisitosSolicitables.some((r) => String(r.id) === reqId)) {
+      setReqId("");
+    }
+  }, [reqId, requisitosSolicitables]);
 
   const validateMutation = useValidate();
   const requestMutation  = useRequestValidation();
@@ -112,9 +135,22 @@ export default function ValidacionPage() {
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap gap-2">
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Filtrar validaciones por estado"
+        >
           {(["todos","pendiente","aprobado","rechazado","comentado"] as const).map(f => (
-            <button key={f} onClick={() => setFiltro(f)}
+            <button
+              key={f}
+              type="button"
+              aria-pressed={filtro === f}
+              aria-label={
+                f === "todos"
+                  ? "Mostrar todos los estados"
+                  : `Filtrar por ${estadoConfig[f].label}`
+              }
+              onClick={() => setFiltro(f)}
               className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize ${
                 filtro === f ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-500 border-gray-200 hover:border-blue-300"
               }`}
@@ -156,7 +192,10 @@ export default function ValidacionPage() {
                           </div>
                         )}
                       </div>
-                      {puedeValidar && v.estado === "pendiente" && (
+                      {puedeValidar &&
+                        v.estado === "pendiente" &&
+                        user?.id != null &&
+                        v.validador?.id === user.id && (
                         <div className="flex gap-2 shrink-0 flex-wrap">
                           <button type="button" onClick={() => abrirAccion(v, "aprobar")}  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors"><CheckCircle size={13} /> Aprobar</button>
                           <button type="button" onClick={() => abrirAccion(v, "rechazar")} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"><XCircle size={13} /> Rechazar</button>
@@ -216,14 +255,24 @@ export default function ValidacionPage() {
       {/* Modal Solicitar Validación */}
       <Modal open={modalSolicitar} onClose={() => setModalSolicitar(false)} title="Solicitar Validación" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-gray-500">Selecciona el requisito y el validador que revisará el requisito.</p>
+          <p className="text-sm text-gray-500">
+            No se puede enviar otra solicitud mientras exista una validación{" "}
+            <strong className="font-semibold text-gray-700">pendiente</strong> para el mismo requisito.
+          </p>
           <Select
             label="Requisito *"
             id="req-solicitar"
-            placeholder="Seleccionar requisito"
+            placeholder={
+              requisitosSolicitables.length === 0
+                ? "Ningún requisito disponible (todos con validación pendiente)"
+                : "Seleccionar requisito"
+            }
             value={reqId}
             onChange={e => setReqId(e.target.value)}
-            options={requisitos.map(r => ({ value: String(r.id), label: `${r.codigo} — ${r.titulo}` }))}
+            options={requisitosSolicitables.map((r) => ({
+              value: String(r.id),
+              label: `${r.codigo} — ${r.titulo}`,
+            }))}
           />
           <Select
             label="Validador *"
@@ -235,7 +284,15 @@ export default function ValidacionPage() {
           />
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-gray-100">
             <Button variant="secondary" onClick={() => setModalSolicitar(false)}>Cancelar</Button>
-            <Button onClick={confirmarSolicitud} disabled={!reqId || !validadorId || requestMutation.isPending}>
+            <Button
+              onClick={confirmarSolicitud}
+              disabled={
+                !reqId ||
+                !validadorId ||
+                requestMutation.isPending ||
+                requisitosSolicitables.length === 0
+              }
+            >
               {requestMutation.isPending && <Loader2 size={13} className="animate-spin" />}
               <SendHorizonal size={14} /> Enviar solicitud
             </Button>

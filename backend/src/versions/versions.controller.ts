@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Body, ParseIntPipe } from '@nestjs/common
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { VersionsService, CreateVersionDto } from './versions.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { OrAnyPermiso } from '../common/decorators/or-any-permiso.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RequirementsService } from '../requirements/requirements.service';
 import { User } from '../users/user.entity';
@@ -17,6 +18,7 @@ export class VersionsController {
 
   @Get()
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Historial de versiones del requisito' })
   findAll(@Param('id', ParseIntPipe) id: number) {
     return this.versionsService.findByRequirement(id);
@@ -24,6 +26,7 @@ export class VersionsController {
 
   @Post()
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Crear nueva versión del requisito' })
   async create(
     @Param('id', ParseIntPipe) id: number,

@@ -8,7 +8,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { FileText, Clock, CheckCircle, AlertCircle, Plus, ArrowRight, Zap, ArrowUpDown, BarChart3, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { canWriteCoreEntities } from "@/lib/permissions";
+import { canAccessPath, canUseDashboardQuickLinks } from "@/lib/permissions";
 import { useDashboardStats, useMonthlyProgress } from "@/hooks/useReports";
 import { useRequirements } from "@/hooks/useRequirements";
 
@@ -45,7 +45,7 @@ function StatCard({ label, value, icon: Icon, tone }: { label: string; value: nu
           <p className="text-xs font-medium text-white/85 leading-tight">{label}</p>
           <p className="text-3xl font-bold mt-1 leading-none tracking-tight">{value}</p>
         </div>
-        <div className="bg-white/20 p-2 rounded-xl shrink-0">
+        <div className="bg-white/20 p-2 rounded-xl shrink-0" aria-hidden>
           <Icon size={22} className="text-white" />
         </div>
       </div>
@@ -55,10 +55,11 @@ function StatCard({ label, value, icon: Icon, tone }: { label: string; value: nu
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const canWrite = canWriteCoreEntities(user?.rol);
+  const canVerListaRequisitos = canAccessPath(user?.rol, "/requisitos", user?.permisos);
+  const showAccesosRapidos = canUseDashboardQuickLinks(user?.rol, user?.permisos);
   const { data: stats } = useDashboardStats();
   const { data: progressData = [] } = useMonthlyProgress();
-  const { data: requisitos } = useRequirements();
+  const { data: requisitos } = useRequirements({ enabled: canVerListaRequisitos });
 
   const ultimos = (requisitos ?? []).slice(0, 5);
 
@@ -74,27 +75,32 @@ export default function DashboardPage() {
             {user?.rol} · {new Date().toLocaleDateString("es-DO", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
-        {canWrite && (
+        {showAccesosRapidos && (
           <Link href="/requisitos">
-            <Button className="w-full sm:w-auto"><Plus size={15} /> Añadir Requisito</Button>
+            <Button className="w-full sm:w-auto">
+              <Plus size={15} aria-hidden /> Añadir Requisito
+            </Button>
           </Link>
         )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3" aria-labelledby="dashboard-metricas-heading">
+        <h2 id="dashboard-metricas-heading" className="sr-only">
+          Resumen de métricas de requisitos
+        </h2>
         <StatCard label="Requisitos Totales" value={stats?.totalRequisitos ?? 0}     icon={FileText}   tone="total" />
         <StatCard label="Req. Pendientes"    value={stats?.requisitosPendientes ?? 0} icon={Clock}       tone="pendiente" />
         <StatCard label="Req. Aprobados"     value={stats?.requisitosAprobados ?? 0}  icon={CheckCircle} tone="aprobado" />
         <StatCard label="En Revisión"        value={stats?.requisitosEnRevision ?? 0} icon={AlertCircle} tone="revision" />
-      </div>
+      </section>
 
       {/* Gráfico + Últimos */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
         <Card className="xl:col-span-3">
           <CardHeader>
             <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-              <FolderKanban size={16} className="text-blue-600" /> Progreso Mensual (últimos 6 meses)
+              <FolderKanban size={16} className="text-blue-600" aria-hidden /> Progreso Mensual (últimos 6 meses)
             </h2>
           </CardHeader>
           <CardContent className="pt-0">
@@ -126,11 +132,13 @@ export default function DashboardPage() {
         <Card className="xl:col-span-2">
           <CardHeader>
             <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-              <FileText size={16} className="text-blue-600" /> Últimos Añadidos
+              <FileText size={16} className="text-blue-600" aria-hidden /> Últimos Añadidos
             </h2>
-            <Link href="/requisitos" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-              Ver todos <ArrowRight size={11} />
-            </Link>
+            {canVerListaRequisitos ? (
+              <Link href="/requisitos" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                Ver todos <ArrowRight size={11} aria-hidden />
+              </Link>
+            ) : null}
           </CardHeader>
           <CardContent className="p-0">
             {ultimos.length === 0 ? (
@@ -156,23 +164,29 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Accesos rápidos */}
-      <Card>
-        <CardHeader>
-          <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-            <Zap size={16} className="text-yellow-500" /> Accesos Rápidos
-          </h2>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {accesosRapidos.map(({ label, icon: Icon, href, color }) => (
-              <Link key={label} href={href} className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 font-medium text-sm transition-colors shadow-sm ${color}`}>
-                <Icon size={18} /> {label}
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Accesos rápidos: administrador o matriz completa */}
+      {showAccesosRapidos ? (
+        <Card>
+          <CardHeader>
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+              <Zap size={16} className="text-yellow-500" aria-hidden /> Accesos Rápidos
+            </h2>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {accesosRapidos.map(({ label, icon: Icon, href, color }) => (
+                <Link
+                  key={label}
+                  href={href}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 font-medium text-sm transition-colors shadow-sm ${color}`}
+                >
+                  <Icon size={18} aria-hidden /> {label}
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

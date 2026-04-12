@@ -13,6 +13,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { RequirementCategoryDefsService } from './requirement-category-defs.service';
 import { CreateCategoryDefDto } from './dto/create-category-def.dto';
 import { UpdateCategoryDefDto } from './dto/update-category-def.dto';
+import { OrAnyPermiso } from '../common/decorators/or-any-permiso.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('Requirement categories')
@@ -23,6 +24,7 @@ export class RequirementCategoryDefsController {
 
   @Get()
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiQuery({ name: 'projectId', required: false })
   @ApiOperation({
     summary:
@@ -36,6 +38,7 @@ export class RequirementCategoryDefsController {
 
   @Post()
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({
     summary: 'Crear categoría (por proyecto o global si projectId omitido)',
   })
@@ -45,6 +48,7 @@ export class RequirementCategoryDefsController {
 
   @Patch(':id')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Actualizar categoría' })
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -55,6 +59,7 @@ export class RequirementCategoryDefsController {
 
   @Delete(':id')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Desactivar categoría (no sistema)' })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);

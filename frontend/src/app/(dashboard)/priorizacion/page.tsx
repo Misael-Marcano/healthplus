@@ -180,16 +180,19 @@ export default function PriorizacionPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
+              <caption className="sr-only">
+                Matriz de priorización por impacto, urgencia, esfuerzo y valor
+              </caption>
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Requisito</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-blue-600 uppercase tracking-wide">Impacto</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-orange-500 uppercase tracking-wide">Urgencia</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-red-500 uppercase tracking-wide">Esfuerzo</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-green-600 uppercase tracking-wide">Valor</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Score</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Prioridad</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">#</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Requisito</th>
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-blue-600 uppercase tracking-wide">Impacto</th>
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-orange-500 uppercase tracking-wide">Urgencia</th>
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-red-500 uppercase tracking-wide">Esfuerzo</th>
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-green-600 uppercase tracking-wide">Valor</th>
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Score</th>
+                  <th scope="col" className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Prioridad</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -200,11 +203,11 @@ export default function PriorizacionPage() {
                   return (
                     <tr key={req.id} className="hover:bg-gray-50/80 transition-colors">
                       <td className="px-4 py-3 text-sm font-bold text-gray-400">#{idx + 1}</td>
-                      <td className="px-4 py-3">
+                      <th scope="row" className="px-4 py-3 text-left font-normal">
                         <p className="text-xs font-mono text-blue-600">{req.codigo}</p>
                         <p className="text-sm font-medium text-gray-900 max-w-[180px] truncate">{req.titulo}</p>
                         <p className="text-xs text-gray-400">{req.proyectoNombre}</p>
-                      </td>
+                      </th>
                       <td className="px-4 py-3"><div className="flex justify-center"><ScoreInput id={req.id} field="impacto"  value={s.impacto}  /></div></td>
                       <td className="px-4 py-3"><div className="flex justify-center"><ScoreInput id={req.id} field="urgencia" value={s.urgencia} /></div></td>
                       <td className="px-4 py-3"><div className="flex justify-center"><ScoreInput id={req.id} field="esfuerzo" value={s.esfuerzo} /></div></td>

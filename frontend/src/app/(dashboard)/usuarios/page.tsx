@@ -5,7 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -15,10 +15,22 @@ import {
   Plus, Search, Pencil, ShieldCheck,
   Users, UserCheck, UserX, Loader2, UserMinus, UserPlus,
 } from "lucide-react";
-import type { User, UserRole } from "@/types";
+import type { User, UserRole, RolePermisos } from "@/types";
 import type { MessageKey } from "@/i18n/dictionaries";
-import { useUsersAdmin, useRoles, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useUsers";
-import { RequireRole } from "@/components/auth/RequireRole";
+import {
+  useUsersAdmin,
+  useRoles,
+  useCreateUser,
+  useUpdateUser,
+  useDeleteUser,
+  useUpdateRolePermissions,
+} from "@/hooks/useUsers";
+import {
+  mergeRolePermisos,
+  PERMISO_MATRIX_KEYS,
+  roleOrder,
+} from "@/lib/role-permissions";
+import { RequirePathAccess } from "@/components/auth/RequireRole";
 import { useLocale } from "@/context/LocaleContext";
 import { useAuth } from "@/context/AuthContext";
 
@@ -28,6 +40,15 @@ const rolConfig: Record<UserRole, { label: string; variant: "success" | "warning
   stakeholder:   { label: "Stakeholder",   variant: "purple"  },
   gerencia:      { label: "Gerencia",      variant: "warning" },
   consulta:      { label: "Consulta",      variant: "gray"    },
+};
+
+const PERM_LABEL_KEYS: Record<keyof RolePermisos, MessageKey> = {
+  manageUsers: "users.perm.manageUsers",
+  createReq: "users.perm.createReq",
+  editReq: "users.perm.editReq",
+  validate: "users.perm.validate",
+  reports: "users.perm.reports",
+  settings: "users.perm.settings",
 };
 
 const rolOptions = [
@@ -67,19 +88,22 @@ type EditValues   = z.infer<typeof editSchema>;
 
 function UsuariosPageContent() {
   const { t } = useLocale();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refreshUser } = useAuth();
   const [search,    setSearch]    = useState("");
   const [filtroRol, setFiltroRol] = useState<UserRole | "">("");
   const [filtroEstado, setFiltroEstado] = useState<"" | "activo" | "inactivo">("");
   const [modalNuevo, setModalNuevo] = useState(false);
   const [editando,   setEditando]   = useState<User | null>(null);
   const [confirmarDesactivar, setConfirmarDesactivar] = useState<User | null>(null);
+  const [modalPermisos, setModalPermisos] = useState(false);
+  const [matrixDraft, setMatrixDraft] = useState<Record<number, RolePermisos>>({});
 
   const { data: usuarios = [], isLoading } = useUsersAdmin();
   const { data: roles = [] } = useRoles();
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const deleteMutation = useDeleteUser();
+  const updatePermMutation = useUpdateRolePermissions();
 
   const createForm = useForm<CreateValues>({ resolver: zodResolver(createSchema) });
   const editForm   = useForm<EditValues>({
@@ -144,6 +168,39 @@ function UsuariosPageContent() {
     updateMutation.mutate({ id: u.id, activo: true });
   };
 
+  const openPermisosModal = () => {
+    const draft: Record<number, RolePermisos> = {};
+    for (const r of roles) {
+      draft[r.id] = mergeRolePermisos(r.nombre, r.permisos);
+    }
+    setMatrixDraft(draft);
+    setModalPermisos(true);
+  };
+
+  const toggleMatrixCell = (roleId: number, key: keyof RolePermisos) => {
+    setMatrixDraft((d) => {
+      const row = d[roleId];
+      if (!row) return d;
+      return { ...d, [roleId]: { ...row, [key]: !row[key] } };
+    });
+  };
+
+  const guardarMatriz = async () => {
+    const sorted = [...roles].sort(roleOrder);
+    try {
+      for (const r of sorted) {
+        const p =
+          matrixDraft[r.id] ?? mergeRolePermisos(r.nombre, r.permisos);
+        await updatePermMutation.mutateAsync({ id: r.id, permisos: p });
+      }
+      toast.success("Permisos actualizados");
+      await refreshUser();
+      setModalPermisos(false);
+    } catch {
+      toast.error("No se pudieron guardar los permisos");
+    }
+  };
+
   const filtrados = usuarios.filter(u => {
     const q = search.toLowerCase();
     const matchText =
@@ -167,9 +224,15 @@ function UsuariosPageContent() {
             <h1 className="text-xl font-bold text-gray-900">{t("users.title")}</h1>
             <p className="text-sm text-gray-400">{usuarios.length} {t("users.subtitle")}</p>
           </div>
-          <Button onClick={() => setModalNuevo(true)}>
-            <Plus size={15} /> {t("users.new")}
-          </Button>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button type="button" variant="secondary" onClick={openPermisosModal}>
+              <ShieldCheck size={15} aria-hidden />
+              {t("users.permMatrix")}
+            </Button>
+            <Button onClick={() => setModalNuevo(true)}>
+              <Plus size={15} aria-hidden /> {t("users.new")}
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -240,13 +303,14 @@ function UsuariosPageContent() {
           <Card>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[540px]">
+                <caption className="sr-only">{t("users.title")}</caption>
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/70">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("users.colUser")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">{t("users.colEmail")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("users.colRole")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">{t("users.colState")}</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("users.colActions")}</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("users.colUser")}</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">{t("users.colEmail")}</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("users.colRole")}</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">{t("users.colState")}</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("users.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -284,30 +348,33 @@ function UsuariosPageContent() {
                             <button
                               type="button"
                               title={t("users.edit")}
+                              aria-label={`${t("users.edit")}: ${u.nombre}`}
                               onClick={() => openEdit(u)}
                               className="p-1.5 rounded-lg hover:bg-yellow-50 text-gray-400 hover:text-yellow-600 transition-colors"
                             >
-                              <Pencil size={14} />
+                              <Pencil size={14} aria-hidden />
                             </button>
                             {u.activo ? (
                               <button
                                 type="button"
                                 title={t("users.deactivate")}
+                                aria-label={`${t("users.deactivate")}: ${u.nombre}`}
                                 onClick={() => solicitarDesactivar(u)}
                                 disabled={deleteMutation.isPending || currentUser?.id === u.id}
                                 className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-700 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                               >
-                                <UserMinus size={14} />
+                                <UserMinus size={14} aria-hidden />
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 title={t("users.activate")}
+                                aria-label={`${t("users.activate")}: ${u.nombre}`}
                                 onClick={() => handleActivate(u)}
                                 disabled={updateMutation.isPending}
                                 className="p-1.5 rounded-lg hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors"
                               >
-                                <UserPlus size={14} />
+                                <UserPlus size={14} aria-hidden />
                               </button>
                             )}
                           </div>
@@ -320,52 +387,81 @@ function UsuariosPageContent() {
             </div>
           </Card>
         )}
+      </div>
 
-        {/* Permisos por Rol */}
-        <Card>
-          <CardHeader>
-            <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
-              <ShieldCheck size={16} className="text-blue-600" />
-              {t("users.permMatrix")}
-            </h2>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[500px] text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="py-2 text-left text-gray-500 font-semibold">{t("users.permCol")}</th>
-                    {(["administrador", "analista", "stakeholder", "gerencia", "consulta"] as UserRole[]).map(r => (
-                      <th key={r} className="py-2 text-center">
-                        <Badge variant={rolConfig[r].variant}>{rolConfig[r].label}</Badge>
-                      </th>
+      {/* Matriz de permisos por rol (editable) */}
+      <Modal
+        open={modalPermisos}
+        onClose={() => !updatePermMutation.isPending && setModalPermisos(false)}
+        title={t("users.permMatrix")}
+        size="xl"
+      >
+        <div className="space-y-4">
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full min-w-[640px] text-xs">
+              <caption className="sr-only">{t("users.permMatrix")}</caption>
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th scope="col" className="py-2 pr-3 text-left text-gray-500 font-semibold">
+                    {t("users.permCol")}
+                  </th>
+                  {[...roles].sort(roleOrder).map((r) => (
+                    <th key={r.id} scope="col" className="py-2 px-1 text-center">
+                      <Badge
+                        variant={
+                          rolConfig[r.nombre as UserRole]?.variant ?? "default"
+                        }
+                      >
+                        {rolConfig[r.nombre as UserRole]?.label ?? r.nombre}
+                      </Badge>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 text-gray-600">
+                {PERMISO_MATRIX_KEYS.map((key) => (
+                  <tr key={key}>
+                    <th scope="row" className="py-2.5 pr-3 font-medium text-left text-gray-800">
+                      {t(PERM_LABEL_KEYS[key])}
+                    </th>
+                    {[...roles].sort(roleOrder).map((r) => (
+                      <td key={r.id} className="py-2 px-1 text-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={matrixDraft[r.id]?.[key] ?? false}
+                          onChange={() => toggleMatrixCell(r.id, key)}
+                          aria-label={`${t(PERM_LABEL_KEYS[key])} — ${rolConfig[r.nombre as UserRole]?.label ?? r.nombre}`}
+                        />
+                      </td>
                     ))}
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 text-gray-600">
-                  {([
-                    ["users.perm.manageUsers",  true,  false, false, false, false],
-                    ["users.perm.createReq",    true,  true,  false, false, false],
-                    ["users.perm.editReq",   true,  true,  false, false, false],
-                    ["users.perm.validate",  true,  false, true,  false, false],
-                    ["users.perm.reports",        true,  true,  false, true,  true ],
-                    ["users.perm.settings",       true,  false, false, false, false],
-                  ] as const).map(([labelKey, ...perms]) => (
-                    <tr key={labelKey}>
-                      <td className="py-2 font-medium">{t(labelKey as MessageKey)}</td>
-                      {(perms as boolean[]).map((p, i) => (
-                        <td key={i} className="py-2 text-center">
-                          {p ? <span className="text-green-600 font-bold">✓</span> : <span className="text-gray-300">–</span>}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-gray-100">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={updatePermMutation.isPending}
+              onClick={() => setModalPermisos(false)}
+            >
+              {t("users.cancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={updatePermMutation.isPending || roles.length === 0}
+              onClick={() => void guardarMatriz()}
+            >
+              {updatePermMutation.isPending && (
+                <Loader2 size={14} className="animate-spin" aria-hidden />
+              )}
+              {t("users.save")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal Nuevo Usuario */}
       <Modal
@@ -536,8 +632,8 @@ function UsuariosPageContent() {
 
 export default function UsuariosPage() {
   return (
-    <RequireRole roles={["administrador"]}>
+    <RequirePathAccess pathname="/usuarios">
       <UsuariosPageContent />
-    </RequireRole>
+    </RequirePathAccess>
   );
 }

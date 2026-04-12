@@ -14,10 +14,15 @@ import {
   ListTree,
   AlignLeft,
   CheckSquare,
+  CheckCircle,
+  XCircle,
+  MessageSquare,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRequirement, useUpdateRequirement } from "@/hooks/useRequirements";
 import { useRequirementVersions } from "@/hooks/useVersions";
+import { useValidationsByRequirement } from "@/hooks/useValidation";
 import { useAddRequirementComment } from "@/hooks/useRequirementComments";
 import {
   useUploadRequirementAttachment,
@@ -37,6 +42,32 @@ import { CommentMentionTextarea } from "@/components/requisitos/CommentMentionTe
 import { RequisitoDetallesPanel } from "@/components/requisitos/RequisitoDetallesPanel";
 
 type TabId = "actividad" | "historial" | "adjuntos";
+
+const validacionEstadoUi: Record<
+  "pendiente" | "aprobado" | "rechazado" | "comentado",
+  { label: string; Icon: typeof Clock; className: string }
+> = {
+  pendiente: {
+    label: "Pendiente",
+    Icon: Clock,
+    className: "bg-amber-50 text-amber-900 border-amber-200",
+  },
+  aprobado: {
+    label: "Aprobado",
+    Icon: CheckCircle,
+    className: "bg-green-50 text-green-900 border-green-200",
+  },
+  rechazado: {
+    label: "Rechazado",
+    Icon: XCircle,
+    className: "bg-red-50 text-red-900 border-red-200",
+  },
+  comentado: {
+    label: "Con observaciones",
+    Icon: MessageSquare,
+    className: "bg-[#DEEBFF] text-[#0747A6] border-[#B3D4FF]",
+  },
+};
 
 function initials(nombre: string) {
   return nombre
@@ -85,9 +116,11 @@ function SectionHeader({
 
 export function RequisitoDetalleView({ requirementId }: { requirementId: number }) {
   const { user } = useAuth();
-  const canWrite = canWriteCoreEntities(user?.rol);
+  const canWrite = canWriteCoreEntities(user?.rol, user?.permisos);
   const { data: req, isLoading, isError, isFetching } = useRequirement(requirementId);
   const { data: versions = [], isLoading: loadingV } = useRequirementVersions(requirementId);
+  const { data: validacionesReq = [], isLoading: loadingVal } =
+    useValidationsByRequirement(requirementId);
   const [tab, setTab] = useState<TabId>("actividad");
   const [nuevoComentario, setNuevoComentario] = useState("");
   const [draftTitulo, setDraftTitulo] = useState("");
@@ -362,6 +395,85 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
                 <div className="bg-white">
                 {tab === "actividad" && (
                   <div>
+                    <div className="px-5 sm:px-6 py-3 border-b border-[#EBECF0] bg-[#FAFBFC]">
+                      <h2 className="text-xs font-semibold uppercase tracking-wide text-[#5E6C84]">
+                        Validaciones
+                      </h2>
+                      <p className="text-[11px] text-[#5E6C84] mt-1">
+                        Acciones de validación (aprobar, rechazar, observaciones) y comentarios asociados a cada solicitud.
+                      </p>
+                    </div>
+                    <div className="px-5 sm:px-6 py-4 border-b border-[#EBECF0] bg-white">
+                      {loadingVal ? (
+                        <div className="flex justify-center py-8">
+                          <Loader2 size={22} className="animate-spin text-[#0052CC]" />
+                        </div>
+                      ) : validacionesReq.length === 0 ? (
+                        <p className="text-sm text-[#5E6C84] text-center py-6 border border-dashed border-[#DFE1E6] rounded-md bg-[#FAFBFC]">
+                          No hay solicitudes de validación registradas para este requisito.
+                        </p>
+                      ) : (
+                        <ul className="space-y-3">
+                          {validacionesReq.map((val) => {
+                            const estadoVal = val.estado as keyof typeof validacionEstadoUi;
+                            const st =
+                              validacionEstadoUi[estadoVal] ?? validacionEstadoUi.pendiente;
+                            const StIcon = st.Icon;
+                            const solicitanteNombre =
+                              (val as { solicitante?: { nombre?: string } }).solicitante?.nombre;
+                            const validadorNombre =
+                              (val as { validador?: { nombre?: string } }).validador?.nombre;
+                            return (
+                              <li
+                                key={val.id}
+                                className="rounded-md border border-[#DFE1E6] bg-[#FAFBFC] p-3.5"
+                              >
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                  <span
+                                    className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold ${st.className}`}
+                                  >
+                                    <StIcon size={12} aria-hidden />
+                                    {st.label}
+                                  </span>
+                                  <time
+                                    className="text-[11px] text-[#5E6C84]"
+                                    dateTime={String(val.creadoEn)}
+                                  >
+                                    {val.creadoEn
+                                      ? new Date(val.creadoEn).toLocaleString("es-DO", {
+                                          dateStyle: "medium",
+                                          timeStyle: "short",
+                                        })
+                                      : ""}
+                                  </time>
+                                </div>
+                                <p className="text-[11px] text-[#5E6C84] mb-1.5">
+                                  {solicitanteNombre ? (
+                                    <>
+                                      Solicitado por <span className="font-medium text-[#42526E]">{solicitanteNombre}</span>
+                                      {validadorNombre ? " · " : ""}
+                                    </>
+                                  ) : null}
+                                  {validadorNombre ? (
+                                    <>
+                                      Validador asignado:{" "}
+                                      <span className="font-medium text-[#42526E]">{validadorNombre}</span>
+                                    </>
+                                  ) : null}
+                                </p>
+                                {val.comentario?.trim() ? (
+                                  <div className="text-sm text-[#172B4D] leading-relaxed border-l-[3px] border-[#0052CC]/35 pl-3">
+                                    <CommentBody texto={val.comentario} />
+                                  </div>
+                                ) : (
+                                  <p className="text-[11px] text-[#97A0AF] italic">Sin comentario en esta acción.</p>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
                     <div className="px-5 sm:px-6 py-3 border-b border-[#EBECF0] bg-white">
                       <h2 className="text-xs font-semibold uppercase tracking-wide text-[#5E6C84]">
                         Comentarios

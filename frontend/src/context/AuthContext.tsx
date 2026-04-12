@@ -11,6 +11,8 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string, remember?: boolean) => Promise<void>;
   logout: () => void;
+  /** Recarga usuario y permisos desde GET /auth/me (p. ej. tras editar matriz de roles). */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -20,18 +22,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  const refreshUser = useCallback(async () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (!token) return;
+    try {
+      const { data } = await api.get<AuthUser>("/auth/me");
+      const refresh = localStorage.getItem("refresh_token") ?? "";
+      const user = saveSession({ accessToken: token, refreshToken: refresh, user: data });
+      setUser(user);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
-    const u = getUser();
-    setUser(u);
-    if (u) setSessionCookie();
-    setIsLoading(false);
+    let cancelled = false;
+    (async () => {
+      const u = getUser();
+      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+      if (token && u) {
+        try {
+          const { data } = await api.get<AuthUser>("/auth/me");
+          if (!cancelled) {
+            const user = saveSession({
+              accessToken: token,
+              refreshToken: localStorage.getItem("refresh_token") ?? "",
+              user: data,
+            });
+            setUser(user);
+          }
+        } catch {
+          if (!cancelled) {
+            setUser(u);
+            setSessionCookie();
+          }
+        }
+      } else {
+        if (!cancelled) {
+          setUser(u);
+          if (u) setSessionCookie();
+        }
+      }
+      if (!cancelled) setIsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string, remember?: boolean) => {
     const { data } = await api.post("/auth/login", { email, password, remember });
-    saveSession(data);
-    setUser(data.user);
-    router.push(getDefaultLandingPath(data.user?.rol));
+    const user = saveSession(data);
+    setUser(user);
+    router.push(getDefaultLandingPath(user.rol, user.permisos));
   }, [router]);
 
   const logout = useCallback(() => {
@@ -41,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,0 +1,175 @@
+// HealthPlus — esquema derivado de las entidades TypeORM (`backend/src/**/*.entity.ts`).
+// Visualizar en https://dbdiagram.io (importar este archivo).
+
+Project HealthPlus {
+  database_type: 'MSSQL'
+}
+
+Table roles {
+  id int [pk, increment]
+  nombre varchar(50) [unique, not null]
+  descripcion varchar(200)
+  permisos text [note: 'simple-json RolePermisos; nullable — matriz permisos UI/cliente']
+}
+
+Table users {
+  id int [pk, increment]
+  nombre varchar(100) [not null]
+  email varchar(150) [unique, not null]
+  password varchar [not null, note: 'select:false en app']
+  activo bit [not null, default: 1]
+  role_id int [not null, ref: > roles.id]
+  created_at datetime2 [not null]
+  updated_at datetime2 [not null]
+}
+
+Table projects {
+  id int [pk, increment]
+  nombre varchar(150) [not null]
+  descripcion text
+  estado varchar [not null, default: 'activo']
+  responsable_id int [ref: > users.id]
+  fecha_inicio date
+  fecha_fin date
+  deleted bit [not null, default: 0]
+  created_at datetime2 [not null]
+  updated_at datetime2 [not null]
+}
+
+Table requirement_category_defs {
+  id int [pk, increment]
+  nombre varchar(120) [not null]
+  slug varchar(64) [not null]
+  project_id int [ref: > projects.id, note: 'null = global']
+  orden int [not null, default: 0]
+  color varchar(16)
+  activo bit [not null, default: 1]
+  es_sistema bit [not null, default: 0]
+  created_at datetime2 [not null]
+  updated_at datetime2 [not null]
+
+  Indexes {
+    (slug, project_id) [unique]
+  }
+}
+
+Table requirement_status_defs {
+  id int [pk, increment]
+  nombre varchar(120) [not null]
+  slug varchar(64) [not null]
+  project_id int [ref: > projects.id, note: 'null = global']
+  orden int [not null, default: 0]
+  color varchar(16)
+  activo bit [not null, default: 1]
+  es_sistema bit [not null, default: 0]
+  created_at datetime2 [not null]
+  updated_at datetime2 [not null]
+
+  Indexes {
+    (slug, project_id) [unique]
+  }
+}
+
+Table requirements {
+  id int [pk, increment]
+  codigo varchar(20) [unique, not null]
+  titulo varchar(200) [not null]
+  descripcion text [not null]
+  tipo varchar [not null, default: 'funcional']
+  categoria varchar(100) [note: 'nullable; slug sincronizado con category_def']
+  category_def_id int [ref: > requirement_category_defs.id]
+  prioridad varchar [not null, default: 'media']
+  impacto int [not null, default: 3]
+  urgencia int [not null, default: 3]
+  esfuerzo int [not null, default: 3]
+  valor int [not null, default: 3]
+  estado varchar [not null, default: 'borrador']
+  status_def_id int [ref: > requirement_status_defs.id]
+  criterios_aceptacion text
+  version int [not null, default: 1]
+  deleted bit [not null, default: 0]
+  project_id int [not null, ref: > projects.id]
+  solicitante_id int [ref: > users.id]
+  responsable_id int [ref: > users.id]
+  created_at datetime2 [not null]
+  updated_at datetime2 [not null]
+}
+
+Table requirement_versions {
+  id int [pk, increment]
+  requirement_id int [not null, ref: > requirements.id]
+  version int [not null]
+  titulo varchar(200) [not null]
+  descripcion text [not null]
+  criterios_aceptacion text
+  motivo_cambio varchar(500)
+  creado_por_id int [ref: > users.id]
+  created_at datetime2 [not null]
+}
+
+Table requirement_validations {
+  id int [pk, increment]
+  requirement_id int [not null, ref: > requirements.id]
+  validador_id int [not null, ref: > users.id]
+  solicitado_por_id int [ref: > users.id, note: 'nullable; quien solicitó la validación']
+  estado varchar [not null, default: 'pendiente']
+  comentario text
+  created_at datetime2 [not null]
+}
+
+Table requirement_comments {
+  id int [pk, increment]
+  requirement_id int [not null, ref: > requirements.id]
+  user_id int [not null, ref: > users.id]
+  texto text [not null]
+  menciones text [note: 'simple-json number[] — IDs mencionados con @']
+  created_at datetime2 [not null]
+}
+
+Table requirement_attachments {
+  id int [pk, increment]
+  requirement_id int [not null, ref: > requirements.id]
+  nombre_original varchar(255) [not null]
+  ruta_almacenamiento varchar(500) [not null]
+  mime_type varchar(120) [not null]
+  tamano_bytes int [not null]
+  subido_por_id int [ref: > users.id]
+  created_at datetime2 [not null]
+}
+
+Table audit_logs {
+  id int [pk, increment]
+  accion varchar(100) [not null]
+  entidad varchar(100)
+  entidad_id int
+  detalle text
+  user_id int [ref: > users.id]
+  ip_address varchar(45)
+  created_at datetime2 [not null]
+}
+
+Table password_resets {
+  id int [pk, increment]
+  email varchar(150) [not null]
+  token varchar(64) [not null]
+  expires_at datetime [not null]
+  created_at datetime2 [not null]
+}
+
+Table system_settings {
+  id int [pk, note: 'PrimaryColumn (no identity); típ. fila única id=1']
+  data text [not null, note: 'simple-json SystemSettingsData']
+  updated_at datetime2 [not null]
+}
+
+Table notification_reads {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  kind varchar(32) [not null, note: 'InboxItemKind en servicio notificaciones']
+  ref_id int [not null]
+  read_at datetime2 [not null]
+
+  Indexes {
+    (user_id, kind, ref_id) [unique]
+  }
+}

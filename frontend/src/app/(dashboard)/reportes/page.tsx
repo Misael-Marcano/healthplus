@@ -74,6 +74,8 @@ const DETALLE_COLUMNAS: { key: keyof RequirementDetailExportRow; header: string 
   { key: "responsable", header: "Responsable" },
   { key: "criteriosAceptacion", header: "Criterios aceptación" },
   { key: "version", header: "Versión" },
+  { key: "adjuntosCount", header: "N.º adjuntos" },
+  { key: "adjuntosNombres", header: "Archivos adjuntos" },
   { key: "creadoEn", header: "Creado" },
   { key: "actualizadoEn", header: "Actualizado" },
 ];
@@ -202,34 +204,46 @@ export default function ReportesPage() {
             type="button"
             onClick={exportarCsv}
             disabled={isAnyLoading}
+            aria-label="Exportar CSV resumen de métricas"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] border border-[#D9E2EC] bg-white text-sm font-semibold text-[#4E6A8F] hover:bg-[#F6F8FB] transition-colors disabled:opacity-50"
           >
-            <FileDown size={16} strokeWidth={1.75} /> CSV resumen
+            <FileDown size={16} strokeWidth={1.75} aria-hidden /> CSV resumen
           </button>
           <button
             type="button"
             onClick={() => void exportarCsvDetallado()}
             disabled={isAnyLoading || exportingDetalle}
+            aria-label="Exportar CSV detallado de todos los requisitos"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] border border-[#D9E2EC] bg-white text-sm font-semibold text-[#4E6A8F] hover:bg-[#F6F8FB] transition-colors disabled:opacity-50"
           >
-            {exportingDetalle ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} strokeWidth={1.75} />}
+            {exportingDetalle ? (
+              <Loader2 size={16} className="animate-spin" aria-hidden />
+            ) : (
+              <FileText size={16} strokeWidth={1.75} aria-hidden />
+            )}
             CSV detallado
           </button>
           <button
             type="button"
             onClick={() => void exportarPdfDetallado()}
             disabled={isAnyLoading || exportingDetalle}
+            aria-label="Exportar PDF detallado de todos los requisitos"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] border border-[#D9E2EC] bg-white text-sm font-semibold text-[#4E6A8F] hover:bg-[#F6F8FB] transition-colors disabled:opacity-50"
           >
-            {exportingDetalle ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} strokeWidth={1.75} />}
+            {exportingDetalle ? (
+              <Loader2 size={16} className="animate-spin" aria-hidden />
+            ) : (
+              <FileDown size={16} strokeWidth={1.75} aria-hidden />
+            )}
             PDF detallado
           </button>
           <button
             type="button"
             onClick={() => window.print()}
+            aria-label="Imprimir la vista de reportes"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-[10px] border border-[#D9E2EC] bg-white text-sm font-semibold text-[#4E6A8F] hover:bg-[#F6F8FB] transition-colors"
           >
-            <Printer size={16} strokeWidth={1.75} /> Imprimir vista
+            <Printer size={16} strokeWidth={1.75} aria-hidden /> Imprimir vista
           </button>
         </div>
       </div>

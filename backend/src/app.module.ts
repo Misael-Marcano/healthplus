@@ -12,6 +12,9 @@ import { ReportsModule } from './reports/reports.module';
 import { AuditModule } from './audit/audit.module';
 import { SeedModule } from './seed/seed.module';
 import { SettingsModule } from './settings/settings.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -28,6 +31,8 @@ import { SettingsModule } from './settings/settings.module';
         password: cfg.get<string>('DB_PASSWORD'),
         database: cfg.get<string>('DB_NAME', 'healthplus_db'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
+        migrationsRun: cfg.get<string>('RUN_MIGRATIONS_ON_BOOT') === 'true',
         synchronize: cfg.get<string>('NODE_ENV') !== 'production',
         options: { encrypt: false, trustServerCertificate: true },
         logging: cfg.get<string>('NODE_ENV') === 'development',
@@ -45,6 +50,9 @@ import { SettingsModule } from './settings/settings.module';
     AuditModule,
     SeedModule,
     SettingsModule,
+    NotificationsModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

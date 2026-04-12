@@ -10,11 +10,13 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UsersModule } from '../users/users.module';
+import { MailModule } from '../mail/mail.module';
 import { PasswordReset } from './password-reset.entity';
 
 @Module({
   imports: [
     UsersModule,
+    MailModule,
     TypeOrmModule.forFeature([PasswordReset]),
     PassportModule,
     JwtModule.registerAsync({

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import api from "@/lib/api";
 
 const REQ_KEY = "requirements";
@@ -44,8 +45,11 @@ export function useUploadRequirementAttachment() {
       file: File;
     }) => uploadRequirementAttachment(requirementId, file),
     onSuccess: (_d, v) => {
+      toast.success("Archivo subido");
       qc.invalidateQueries({ queryKey: [REQ_KEY, v.requirementId] });
       qc.invalidateQueries({ queryKey: [REQ_KEY] });
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -66,8 +70,10 @@ export function useDeleteRequirementAttachment() {
         )
         .then((r) => r.data),
     onSuccess: (_d, v) => {
+      toast.success("Adjunto eliminado");
       qc.invalidateQueries({ queryKey: [REQ_KEY, v.requirementId] });
       qc.invalidateQueries({ queryKey: [REQ_KEY] });
+      qc.invalidateQueries({ queryKey: ["reports"] });
     },
   });
 }

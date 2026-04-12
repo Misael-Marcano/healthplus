@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, Search, X, Loader2, User } from "lucide-react";
 import { useAuditLog } from "@/hooks/useAudit";
-import { RequireRole } from "@/components/auth/RequireRole";
+import { RequirePathAccess } from "@/components/auth/RequireRole";
 
 const ACCION_CONFIG: Record<string, { label: string; variant: "success" | "warning" | "default" | "gray" | "danger" | "purple" }> = {
   CREAR_REQUISITO:   { label: "Creación",       variant: "success" },
@@ -89,13 +89,14 @@ function AuditoriaPageContent() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
+              <caption className="sr-only">Registro de actividad y auditoría</caption>
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Detalle</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Entidad</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Usuario</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Detalle</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Entidad</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Usuario</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -142,8 +143,8 @@ function AuditoriaPageContent() {
 
 export default function AuditoriaPage() {
   return (
-    <RequireRole roles={["administrador"]}>
+    <RequirePathAccess pathname="/auditoria">
       <AuditoriaPageContent />
-    </RequireRole>
+    </RequirePathAccess>
   );
 }

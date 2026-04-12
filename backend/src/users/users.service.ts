@@ -34,7 +34,7 @@ export class UsersService {
   }
 
   async findById(id: number): Promise<User | null> {
-    return this.repo.findOne({ where: { id } });
+    return this.repo.findOne({ where: { id }, relations: ['role'] });
   }
 
   /** Valida que todos los IDs existan y estén activos (menciones @ en comentarios). */

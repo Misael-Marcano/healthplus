@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Requirement } from '../requirements/requirement.entity';
+import { RequirementAttachment } from '../requirements/requirement-attachment.entity';
 import { Project } from '../projects/project.entity';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class ReportsService {
   constructor(
     @InjectRepository(Requirement) private reqRepo: Repository<Requirement>,
     @InjectRepository(Project)     private projRepo: Repository<Project>,
+    @InjectRepository(RequirementAttachment)
+    private attRepo: Repository<RequirementAttachment>,
   ) {}
 
   async getDashboard() {
@@ -109,27 +112,52 @@ export class ReportsService {
       ],
       order: { creadoEn: 'DESC' },
     });
-    return rows.map((r) => ({
-      id: r.id,
-      codigo: r.codigo,
-      titulo: r.titulo,
-      descripcion: r.descripcion,
-      tipo: r.tipo,
-      categoria: r.categoryDef?.nombre ?? r.categoria ?? '',
-      prioridad: r.prioridad,
-      impacto: r.impacto,
-      urgencia: r.urgencia,
-      esfuerzo: r.esfuerzo,
-      valor: r.valor,
-      estadoSlug: r.estado,
-      estadoNombre: r.statusDef?.nombre ?? r.estado,
-      proyecto: r.project?.nombre ?? '',
-      solicitante: r.solicitante?.nombre ?? '',
-      responsable: r.responsable?.nombre ?? '',
-      criteriosAceptacion: r.criteriosAceptacion ?? '',
-      version: r.version,
-      creadoEn: r.creadoEn,
-      actualizadoEn: r.actualizadoEn,
-    }));
+    const ids = rows.map((r) => r.id);
+    const byReq = new Map<number, { count: number; names: string[] }>();
+    for (const id of ids) {
+      byReq.set(id, { count: 0, names: [] });
+    }
+    if (ids.length > 0) {
+      const atts = await this.attRepo.find({
+        where: { requirement: { id: In(ids) } },
+        relations: ['requirement'],
+        order: { id: 'ASC' },
+      });
+      for (const a of atts) {
+        const rid = a.requirement?.id;
+        if (rid == null) continue;
+        const cur = byReq.get(rid);
+        if (!cur) continue;
+        cur.count++;
+        cur.names.push(a.nombreOriginal);
+      }
+    }
+    return rows.map((r) => {
+      const att = byReq.get(r.id) ?? { count: 0, names: [] };
+      return {
+        id: r.id,
+        codigo: r.codigo,
+        titulo: r.titulo,
+        descripcion: r.descripcion,
+        tipo: r.tipo,
+        categoria: r.categoryDef?.nombre ?? r.categoria ?? '',
+        prioridad: r.prioridad,
+        impacto: r.impacto,
+        urgencia: r.urgencia,
+        esfuerzo: r.esfuerzo,
+        valor: r.valor,
+        estadoSlug: r.estado,
+        estadoNombre: r.statusDef?.nombre ?? r.estado,
+        proyecto: r.project?.nombre ?? '',
+        solicitante: r.solicitante?.nombre ?? '',
+        responsable: r.responsable?.nombre ?? '',
+        criteriosAceptacion: r.criteriosAceptacion ?? '',
+        version: r.version,
+        creadoEn: r.creadoEn,
+        actualizadoEn: r.actualizadoEn,
+        adjuntosCount: att.count,
+        adjuntosNombres: att.names.join('; '),
+      };
+    });
   }
 }

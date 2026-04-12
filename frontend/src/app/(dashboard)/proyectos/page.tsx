@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -51,7 +52,7 @@ export default function ProyectosPage() {
   const [vista, setVista] = useState<"tarjetas" | "lista">("tarjetas");
 
   const { user } = useAuth();
-  const canWrite = canWriteCoreEntities(user?.rol);
+  const canWrite = canWriteCoreEntities(user?.rol, user?.permisos);
 
   const { data: proyectos = [], isLoading } = useProjects();
   const { data: usuarios = [] } = useUserLookup();
@@ -192,7 +193,14 @@ export default function ProyectosPage() {
                       </Badge>
                     </div>
 
-                    <h3 className="font-semibold text-gray-900 text-sm leading-snug">{p.nombre}</h3>
+                    <h3 className="font-semibold text-gray-900 text-sm leading-snug">
+                      <Link
+                        href={`/requisitos?proyecto=${p.id}`}
+                        className="hover:text-[#2C5FA3] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2C5FA3] rounded"
+                      >
+                        {p.nombre}
+                      </Link>
+                    </h3>
                     <p className="text-xs text-gray-400 mt-1 line-clamp-2">{p.descripcion}</p>
 
                     <div className="mt-4 space-y-1">
@@ -206,22 +214,44 @@ export default function ProyectosPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                      <Link
+                        href={`/requisitos?proyecto=${p.id}`}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-[#2C5FA3] hover:underline"
+                      >
+                        <FileText size={14} aria-hidden />
+                        Ver requisitos
+                      </Link>
                       <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                        <Users size={12} />
+                        <Users size={12} aria-hidden />
                         {p.responsable}
                       </div>
-                      <div className="flex gap-1">
-                        <button onClick={() => setDetalle(p)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors">
-                          <Eye size={14} />
+                      <div className="flex gap-1 shrink-0">
+                        <button
+                          type="button"
+                          aria-label={`Ver detalle de ${p.nombre}`}
+                          onClick={() => setDetalle(p)}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Eye size={14} aria-hidden />
                         </button>
                         {canWrite && (
                           <>
-                            <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-yellow-50 text-gray-400 hover:text-yellow-600 transition-colors">
-                              <Pencil size={14} />
+                            <button
+                              type="button"
+                              aria-label={`Editar proyecto ${p.nombre}`}
+                              onClick={() => openEdit(p)}
+                              className="p-1.5 rounded-lg hover:bg-yellow-50 text-gray-400 hover:text-yellow-600 transition-colors"
+                            >
+                              <Pencil size={14} aria-hidden />
                             </button>
-                            <button onClick={() => handleDelete(p)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
-                              <Trash2 size={14} />
+                            <button
+                              type="button"
+                              aria-label={`Eliminar proyecto ${p.nombre}`}
+                              onClick={() => handleDelete(p)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                            >
+                              <Trash2 size={14} aria-hidden />
                             </button>
                           </>
                         )}
@@ -239,13 +269,14 @@ export default function ProyectosPage() {
           <Card>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px]">
+                <caption className="sr-only">Listado de proyectos en vista tabla</caption>
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/70">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Proyecto</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Responsable</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Avance</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Estado</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Proyecto</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Responsable</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Avance</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Estado</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -258,7 +289,12 @@ export default function ProyectosPage() {
                       return (
                         <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
                           <td className="px-4 py-3">
-                            <p className="text-sm font-medium text-gray-900">{p.nombre}</p>
+                            <Link
+                              href={`/requisitos?proyecto=${p.id}`}
+                              className="text-sm font-medium text-[#2C5FA3] hover:underline"
+                            >
+                              {p.nombre}
+                            </Link>
                             <p className="text-xs text-gray-400">{total} requisitos</p>
                           </td>
                           <td className="px-4 py-3 hidden md:table-cell text-sm text-gray-600">{p.responsable}</td>
@@ -277,11 +313,32 @@ export default function ProyectosPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-1">
-                              <button onClick={() => setDetalle(p)} className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"><Eye size={14} /></button>
+                              <button
+                                type="button"
+                                aria-label={`Ver detalle de ${p.nombre}`}
+                                onClick={() => setDetalle(p)}
+                                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                              >
+                                <Eye size={14} aria-hidden />
+                              </button>
                               {canWrite && (
                                 <>
-                                  <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-yellow-50 text-gray-400 hover:text-yellow-600 transition-colors"><Pencil size={14} /></button>
-                                  <button onClick={() => handleDelete(p)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={14} /></button>
+                                  <button
+                                    type="button"
+                                    aria-label={`Editar proyecto ${p.nombre}`}
+                                    onClick={() => openEdit(p)}
+                                    className="p-1.5 rounded-lg hover:bg-yellow-50 text-gray-400 hover:text-yellow-600 transition-colors"
+                                  >
+                                    <Pencil size={14} aria-hidden />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label={`Eliminar proyecto ${p.nombre}`}
+                                    onClick={() => handleDelete(p)}
+                                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                                  >
+                                    <Trash2 size={14} aria-hidden />
+                                  </button>
                                 </>
                               )}
                             </div>
@@ -421,13 +478,23 @@ export default function ProyectosPage() {
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-              <Button variant="secondary" onClick={() => setDetalle(null)}>Cerrar</Button>
-              {canWrite && (
-                <Button onClick={() => { setDetalle(null); openEdit(detalle); }}>
-                  <Pencil size={14} /> Editar
-                </Button>
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
+              <Link
+                href={`/requisitos?proyecto=${detalle.id}`}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2C5FA3] hover:underline"
+                onClick={() => setDetalle(null)}
+              >
+                <FileText size={16} aria-hidden />
+                Ver requisitos
+              </Link>
+              <div className="flex gap-2 ml-auto">
+                <Button variant="secondary" onClick={() => setDetalle(null)}>Cerrar</Button>
+                {canWrite && (
+                  <Button onClick={() => { setDetalle(null); openEdit(detalle); }}>
+                    <Pencil size={14} /> Editar
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}

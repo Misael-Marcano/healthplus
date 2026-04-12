@@ -63,4 +63,6 @@ export interface RequirementDetailExportRow {
   version: number;
   creadoEn: string;
   actualizadoEn: string;
+  adjuntosCount: number;
+  adjuntosNombres: string;
 }

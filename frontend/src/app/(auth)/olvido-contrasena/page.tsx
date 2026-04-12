@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Loader2, Mail } from "lucide-react";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import api from "@/lib/api";
 
 const schema = z.object({
@@ -34,6 +35,12 @@ export default function OlvidoContrasenaPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF1F6] p-6">
       <div className="w-full max-w-md">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-white border border-[#E5EAF1] shadow-sm flex items-center justify-center p-0.5 shrink-0">
+            <BrandLogo variant="mark" className="h-8 w-8" />
+          </div>
+          <span className="text-sm font-semibold text-[#4B5563]">HealthPlus</span>
+        </div>
         <Link
           href="/login"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-[#4E6A8F] hover:text-[#2C5FA3] mb-6"

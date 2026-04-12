@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import api from "@/lib/api";
-import type { User } from "@/types";
+import type { User, RolePermisos } from "@/types";
 
 const KEY_ADMIN = ["users", "admin"] as const;
 const KEY_LOOKUP = ["users", "lookup"] as const;
@@ -9,6 +10,7 @@ export interface Role {
   id: number;
   nombre: string;
   descripcion?: string;
+  permisos?: RolePermisos | null;
 }
 
 export function useRoles() {
@@ -66,6 +68,7 @@ export function useCreateUser() {
     mutationFn: (dto: CreateUserDto) =>
       api.post("/users", dto).then((r) => r.data),
     onSuccess: () => {
+      toast.success("Usuario creado");
       qc.invalidateQueries({ queryKey: KEY_ADMIN });
       qc.invalidateQueries({ queryKey: KEY_LOOKUP });
     },
@@ -78,6 +81,7 @@ export function useUpdateUser() {
     mutationFn: ({ id, ...dto }: UpdateUserDto) =>
       api.patch(`/users/${id}`, dto).then((r) => r.data),
     onSuccess: () => {
+      toast.success("Usuario actualizado");
       qc.invalidateQueries({ queryKey: KEY_ADMIN });
       qc.invalidateQueries({ queryKey: KEY_LOOKUP });
     },
@@ -89,8 +93,20 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: (id: number) => api.delete(`/users/${id}`),
     onSuccess: () => {
+      toast.success("Usuario eliminado");
       qc.invalidateQueries({ queryKey: KEY_ADMIN });
       qc.invalidateQueries({ queryKey: KEY_LOOKUP });
+    },
+  });
+}
+
+export function useUpdateRolePermissions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, permisos }: { id: number; permisos: RolePermisos }) =>
+      api.patch(`/roles/${id}/permissions`, { permisos }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["roles"] });
     },
   });
 }

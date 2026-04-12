@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export default function ErrorPage({
   error,
@@ -18,6 +19,9 @@ export default function ErrorPage({
       role="alert"
       className="flex min-h-[50vh] flex-col items-center justify-center rounded-xl border border-[#E5EAF1] bg-white px-6 py-12 text-center shadow-sm"
     >
+      <div className="mb-5 w-11 h-11 rounded-xl bg-[#F6F8FB] border border-[#E5EAF1] flex items-center justify-center p-0.5">
+        <BrandLogo variant="mark" className="h-9 w-9" />
+      </div>
       <h1 className="text-xl font-semibold text-[#4B5563]">Algo salió mal</h1>
       <p className="mt-2 max-w-md text-sm text-[#7A8798]">
         Ocurrió un error inesperado. Puedes intentar de nuevo o volver al inicio.

@@ -32,7 +32,7 @@ api.interceptors.response.use(
     if (typeof window !== "undefined" && error.response?.status === 403) {
       const path = window.location.pathname;
       if (!path.startsWith("/sin-permiso") && !path.startsWith("/login")) {
-        window.location.href = "/sin-permiso";
+        window.location.replace("/sin-permiso");
       }
       return Promise.reject(error);
     }

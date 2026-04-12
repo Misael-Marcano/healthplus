@@ -1,16 +1,30 @@
+import type { RolePermisos } from "@/types";
+import { mergeRolePermisos } from "@/lib/role-permissions";
+
 export interface AuthUser {
   id: number;
   nombre: string;
   email: string;
   rol: string;
   activo: boolean;
+  /** Matriz efectiva del rol (login o GET /auth/me). */
+  permisos?: RolePermisos;
+}
+
+/** Alinea la matriz con los defaults del rol (evita objetos incompletos tras login o caché). */
+export function normalizeSessionUser(u: AuthUser): AuthUser {
+  return {
+    ...u,
+    permisos: mergeRolePermisos(u.rol, u.permisos ?? null),
+  };
 }
 
 export function getUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem("user");
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
+    if (!raw) return null;
+    return normalizeSessionUser(JSON.parse(raw) as AuthUser);
   } catch {
     return null;
   }
@@ -29,11 +43,17 @@ export function clearSessionCookie() {
   document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0`;
 }
 
-export function saveSession(data: { accessToken: string; refreshToken: string; user: AuthUser }) {
+export function saveSession(data: {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+}): AuthUser {
+  const user = normalizeSessionUser(data.user);
   localStorage.setItem("access_token", data.accessToken);
   localStorage.setItem("refresh_token", data.refreshToken);
-  localStorage.setItem("user", JSON.stringify(data.user));
+  localStorage.setItem("user", JSON.stringify(user));
   setSessionCookie();
+  return user;
 }
 
 export function clearSession() {

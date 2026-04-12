@@ -9,7 +9,8 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
-export function middleware(request: NextRequest) {
+/** Convención Next.js 16+ (sustituye `middleware.ts`). */
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (

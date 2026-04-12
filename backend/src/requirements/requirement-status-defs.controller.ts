@@ -13,6 +13,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { RequirementStatusDefsService } from './requirement-status-defs.service';
 import { CreateStatusDefDto } from './dto/create-status-def.dto';
 import { UpdateStatusDefDto } from './dto/update-status-def.dto';
+import { OrAnyPermiso } from '../common/decorators/or-any-permiso.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('Requirement statuses')
@@ -23,6 +24,7 @@ export class RequirementStatusDefsController {
 
   @Get()
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiQuery({ name: 'projectId', required: false })
   @ApiOperation({ summary: 'Listar estados (globales + del proyecto si se indica projectId)' })
   list(@Query('projectId') projectId?: string) {
@@ -33,6 +35,7 @@ export class RequirementStatusDefsController {
 
   @Post()
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Crear estado (por proyecto o global si projectId omitido)' })
   create(@Body() dto: CreateStatusDefDto) {
     return this.service.create(dto);
@@ -40,6 +43,7 @@ export class RequirementStatusDefsController {
 
   @Patch(':id')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Actualizar estado' })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDefDto) {
     return this.service.update(id, dto);
@@ -47,6 +51,7 @@ export class RequirementStatusDefsController {
 
   @Delete(':id')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Desactivar estado (no sistema)' })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);

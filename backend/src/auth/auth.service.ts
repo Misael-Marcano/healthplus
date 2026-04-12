@@ -10,10 +10,13 @@ import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { User } from '../users/user.entity';
+import { mergePermisos } from '../roles/role-permissions';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PasswordReset } from './password-reset.entity';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -21,9 +24,27 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private cfg: ConfigService,
+    private mailService: MailService,
     @InjectRepository(PasswordReset)
     private passwordResetRepo: Repository<PasswordReset>,
   ) {}
+
+  /** Payload de sesión alineado con el cliente (permisos efectivos del rol). */
+  sessionUser(user: User) {
+    const nombre = user.role?.nombre ?? 'consulta';
+    return {
+      id: user.id,
+      nombre: user.nombre,
+      email: user.email,
+      rol: nombre,
+      activo: user.activo,
+      permisos: mergePermisos(nombre, user.role?.permisos ?? null),
+    };
+  }
+
+  me(user: User) {
+    return this.sessionUser(user);
+  }
 
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmailWithPassword(dto.email);
@@ -48,13 +69,7 @@ export class AuthService {
         secret: this.cfg.get('JWT_REFRESH_SECRET'),
         expiresIn: refreshExpires,
       }),
-      user: {
-        id: user.id,
-        nombre: user.nombre,
-        email: user.email,
-        rol: user.role?.nombre,
-        activo: user.activo,
-      },
+      user: this.sessionUser(user),
     };
   }
 
@@ -109,9 +124,21 @@ export class AuthService {
       debugToken?: string;
     } = { message: this.genericForgotMessage };
 
+    const smtpOk = await this.mailService.isSmtpConfigured();
+    let mailSent = false;
+    if (smtpOk) {
+      const result = await this.mailService.sendPasswordResetEmail(
+        user.email,
+        resetUrl,
+      );
+      mailSent = result.sent;
+    }
+
     if (this.cfg.get('NODE_ENV') === 'development') {
-      out.resetUrl = resetUrl;
-      out.debugToken = token;
+      if (!mailSent) {
+        out.resetUrl = resetUrl;
+        out.debugToken = token;
+      }
     }
 
     return out;

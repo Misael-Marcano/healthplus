@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Bell, ChevronRight, Settings, Loader2 } from "lucide-react";
+import { Menu, ChevronRight, Settings, Loader2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { isAdminRole } from "@/lib/permissions";
+import { canOpenSettingsShortcut } from "@/lib/permissions";
 import { useRequirement } from "@/hooks/useRequirements";
 import { useLocale } from "@/context/LocaleContext";
 import type { MessageKey } from "@/i18n/dictionaries";
+import { NotificationBell } from "./NotificationBell";
 
 const pathToKey: Record<string, MessageKey> = {
   "/dashboard": "nav.dashboard",
@@ -60,7 +61,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     <header className="sticky top-0 z-10 flex min-h-[72px] h-[72px] items-center justify-between border-b border-[#E5EAF1] bg-white px-4 md:px-6 gap-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]">
       <div className="flex items-center gap-3 min-w-0">
         <button type="button" onClick={onMenuClick} className="lg:hidden p-2 rounded-[10px] hover:bg-[#F6F8FB] text-[#7A8798] transition-colors shrink-0" aria-label={t("topbar.openMenu")}>
-          <Menu size={20} strokeWidth={1.75} />
+          <Menu size={20} strokeWidth={1.75} aria-hidden />
         </button>
         <nav
           className="flex items-center gap-1.5 text-sm min-w-0"
@@ -97,20 +98,17 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        {isAdminRole(user?.rol) && (
+        {canOpenSettingsShortcut(user?.rol, user?.permisos) && (
           <Link
             href="/configuracion"
             className="p-2 rounded-[10px] hover:bg-[#F6F8FB] text-[#7A8798] hover:text-[#2C5FA3] transition-colors"
             title={t("topbar.settings")}
             aria-label={t("topbar.settings")}
           >
-            <Settings size={18} strokeWidth={1.75} />
+            <Settings size={18} strokeWidth={1.75} aria-hidden />
           </Link>
         )}
-        <button type="button" className="relative p-2 rounded-[10px] hover:bg-[#F6F8FB] text-[#7A8798] transition-colors">
-          <Bell size={18} strokeWidth={1.75} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#E45469] rounded-full" />
-        </button>
+        <NotificationBell />
 
         <div className="flex items-center gap-2 bg-[#F6F8FB] border border-[#E5EAF1] rounded-xl px-3 py-1.5 ml-1">
           <div className="w-8 h-8 rounded-full bg-[#2C5FA3] flex items-center justify-center text-white text-[10px] font-semibold">

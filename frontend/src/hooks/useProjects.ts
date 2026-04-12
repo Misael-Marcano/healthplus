@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import api from "@/lib/api";
 import type { Proyecto } from "@/types";
 
@@ -42,7 +43,10 @@ export function useCreateProject() {
   return useMutation({
     mutationFn: (dto: ProjectDto) =>
       api.post("/projects", dto).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
+    onSuccess: () => {
+      toast.success("Proyecto creado");
+      qc.invalidateQueries({ queryKey: [KEY] });
+    },
   });
 }
 
@@ -51,7 +55,10 @@ export function useUpdateProject() {
   return useMutation({
     mutationFn: ({ id, ...dto }: ProjectDto & { id: number }) =>
       api.patch(`/projects/${id}`, dto).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
+    onSuccess: () => {
+      toast.success("Proyecto actualizado");
+      qc.invalidateQueries({ queryKey: [KEY] });
+    },
   });
 }
 
@@ -59,6 +66,9 @@ export function useDeleteProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api.delete(`/projects/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
+    onSuccess: () => {
+      toast.success("Proyecto eliminado");
+      qc.invalidateQueries({ queryKey: [KEY] });
+    },
   });
 }

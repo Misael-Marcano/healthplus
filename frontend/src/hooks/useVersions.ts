@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import api from "@/lib/api";
 
 export interface RequirementVersion {
@@ -30,6 +31,12 @@ export function useCreateVersion(requirementId: number) {
       api
         .post(`/requirements/${requirementId}/versions`, { motivoCambio })
         .then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["versions", requirementId] }),
+    onSuccess: () => {
+      toast.success("Versión registrada en el historial");
+      qc.invalidateQueries({ queryKey: ["versions", requirementId] });
+      qc.invalidateQueries({ queryKey: ["requirements", requirementId] });
+      qc.invalidateQueries({ queryKey: ["requirements"] });
+      qc.invalidateQueries({ queryKey: ["reports"] });
+    },
   });
 }

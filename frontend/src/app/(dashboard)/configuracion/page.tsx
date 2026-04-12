@@ -21,7 +21,7 @@ import {
   useCreateRequirementCategory,
   useDeleteRequirementCategory,
 } from "@/hooks/useRequirementCategories";
-import { RequireRole } from "@/components/auth/RequireRole";
+import { RequirePathAccess } from "@/components/auth/RequireRole";
 import { useSystemSettings, useUpdateSystemSettings } from "@/hooks/useSettings";
 import { useLocale } from "@/context/LocaleContext";
 
@@ -168,13 +168,14 @@ function EstadosRequisitosPanel() {
             <p className="text-sm text-gray-400 text-center py-10">No hay estados en este ámbito.</p>
           ) : (
             <table className="w-full text-sm">
+              <caption className="sr-only">Estados de requisitos configurados en el ámbito seleccionado</caption>
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left text-xs uppercase text-gray-500">
-                  <th className="px-4 py-2">Nombre</th>
-                  <th className="px-4 py-2">Slug</th>
-                  <th className="px-4 py-2">Orden</th>
-                  <th className="px-4 py-2">Sistema</th>
-                  <th className="px-4 py-2 text-right">Acciones</th>
+                  <th scope="col" className="px-4 py-2">Nombre</th>
+                  <th scope="col" className="px-4 py-2">Slug</th>
+                  <th scope="col" className="px-4 py-2">Orden</th>
+                  <th scope="col" className="px-4 py-2">Sistema</th>
+                  <th scope="col" className="px-4 py-2 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -298,13 +299,14 @@ function CategoriasRequisitosPanel() {
             <p className="text-sm text-gray-400 text-center py-10">No hay categorías en este ámbito.</p>
           ) : (
             <table className="w-full text-sm">
+              <caption className="sr-only">Categorías de requisitos en el ámbito seleccionado</caption>
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left text-xs uppercase text-gray-500">
-                  <th className="px-4 py-2">Nombre</th>
-                  <th className="px-4 py-2">Slug</th>
-                  <th className="px-4 py-2">Orden</th>
-                  <th className="px-4 py-2">Sistema</th>
-                  <th className="px-4 py-2 text-right">Acciones</th>
+                  <th scope="col" className="px-4 py-2">Nombre</th>
+                  <th scope="col" className="px-4 py-2">Slug</th>
+                  <th scope="col" className="px-4 py-2">Orden</th>
+                  <th scope="col" className="px-4 py-2">Sistema</th>
+                  <th scope="col" className="px-4 py-2 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -674,8 +676,8 @@ function ConfiguracionPageContent() {
 
 export default function ConfiguracionPage() {
   return (
-    <RequireRole roles={["administrador"]}>
+    <RequirePathAccess pathname="/configuracion">
       <ConfiguracionPageContent />
-    </RequireRole>
+    </RequirePathAccess>
   );
 }

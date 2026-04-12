@@ -54,7 +54,7 @@ export function RequisitoFormModal({
   requirement,
 }: RequisitoFormModalProps) {
   const { user } = useAuth();
-  const canWrite = canWriteCoreEntities(user?.rol);
+  const canWrite = canWriteCoreEntities(user?.rol, user?.permisos);
   const [archivosPendientes, setArchivosPendientes] = useState<File[]>([]);
 
   const { data: proyectos = [] } = useProjects();

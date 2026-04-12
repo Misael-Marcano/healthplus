@@ -3,9 +3,10 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { Roles } from '../common/decorators/roles.decorator';
 
+/** KPIs del panel: todos los roles autenticados (la vista `/reportes` sigue filtrada en cliente por matriz). */
 @ApiTags('Reports')
 @ApiBearerAuth()
-@Roles('administrador', 'analista', 'gerencia', 'consulta')
+@Roles('administrador', 'analista', 'gerencia', 'consulta', 'stakeholder')
 @Controller('reports')
 export class ReportsController {
   constructor(private service: ReportsService) {}

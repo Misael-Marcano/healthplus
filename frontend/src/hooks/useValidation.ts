@@ -4,33 +4,99 @@ import api from "@/lib/api";
 
 const KEY = "validation";
 
-function normalizeValidation(v: any) {
+function mapRequirementToRequisito(req: any) {
+  if (!req) return undefined;
   return {
-    ...v,
-    // Si el requisito viene como objeto plano o anidado
-    requisito: v.requisito ?? {
-      id:     v.requisitoId,
+    id: req.id,
+    codigo: req.codigo ?? "",
+    titulo: req.titulo ?? "",
+    proyecto: req.project?.nombre
+      ? { nombre: req.project.nombre }
+      : req.proyecto?.nombre
+        ? { nombre: req.proyecto.nombre }
+        : undefined,
+  };
+}
+
+function normalizeValidation(v: any) {
+  const req = v.requirement ?? v.requisito;
+  const requisito =
+    v.requisito ??
+    mapRequirementToRequisito(req) ?? {
+      id: v.requisitoId,
       codigo: v.codigo,
       titulo: v.titulo,
       proyecto: v.proyecto ? { nombre: v.proyecto } : undefined,
-    },
-    solicitante:
-      typeof v.solicitante === "object"
-        ? v.solicitante
-        : v.solicitante
+    };
+
+  const solicitanteFromApi = v.solicitadoPor
+    ? { nombre: v.solicitadoPor.nombre ?? "" }
+    : typeof v.solicitante === "object"
+      ? v.solicitante
+      : v.solicitante
         ? { nombre: v.solicitante }
-        : undefined,
+        : undefined;
+
+  return {
+    ...v,
+    requisito,
+    validador: v.validador
+      ? { id: v.validador.id, nombre: v.validador.nombre ?? "" }
+      : undefined,
+    solicitante: solicitanteFromApi,
     creadoEn: v.creadoEn ?? v.fechaSolicitud ?? "",
   };
 }
 
-export function usePendingValidations() {
+const PENDING_REFETCH_MS = 60_000;
+
+export function usePendingValidations(options?: {
+  enabled?: boolean;
+  refetchInterval?: number | false;
+}) {
+  const enabled = options?.enabled !== false;
   return useQuery({
     queryKey: [KEY, "pending"],
     queryFn: () =>
       api.get<any[]>("/validation/pending").then((r) =>
         r.data.map(normalizeValidation)
       ),
+    enabled,
+    refetchInterval:
+      options?.refetchInterval ??
+      (enabled ? PENDING_REFETCH_MS : false),
+  });
+}
+
+/** Validaciones asignadas al usuario (todos los estados) — pantalla Validación. */
+export function useMyValidations(options?: {
+  enabled?: boolean;
+  refetchInterval?: number | false;
+}) {
+  const enabled = options?.enabled !== false;
+  return useQuery({
+    queryKey: [KEY, "mine"],
+    queryFn: () =>
+      api
+        .get<any[]>("/validation/mine")
+        .then((r) => r.data.map(normalizeValidation)),
+    enabled,
+    refetchInterval:
+      options?.refetchInterval ??
+      (enabled ? PENDING_REFETCH_MS : false),
+  });
+}
+
+/** Requisitos que ya tienen una validación pendiente (para deshabilitar nueva solicitud). */
+export function usePendingRequirementIds(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled !== false;
+  return useQuery({
+    queryKey: [KEY, "pending-req-ids"],
+    queryFn: () =>
+      api
+        .get<{ ids: number[] }>("/validation/pending-requirement-ids")
+        .then((r) => r.data.ids ?? []),
+    enabled,
   });
 }
 
@@ -61,6 +127,7 @@ export function useRequestValidation() {
     onSuccess: () => {
       toast.success("Solicitud de validación enviada");
       qc.invalidateQueries({ queryKey: [KEY] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -81,6 +148,7 @@ export function useValidate() {
     onSuccess: () => {
       toast.success("Validación aplicada correctamente");
       qc.invalidateQueries({ queryKey: [KEY] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
       qc.invalidateQueries({ queryKey: ["requirements"] });
       qc.invalidateQueries({ queryKey: ["projects"] });
     },

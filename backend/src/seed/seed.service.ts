@@ -7,6 +7,7 @@ import { User } from '../users/user.entity';
 import { RequirementStatusDef } from '../requirements/requirement-status-def.entity';
 import { RequirementCategoryDef } from '../requirements/requirement-category-def.entity';
 import { Requirement } from '../requirements/requirement.entity';
+import { DEFAULT_PERMISOS_POR_ROL } from '../roles/role-permissions';
 
 const ROLES = [
   { nombre: 'administrador', descripcion: 'Acceso total al sistema' },
@@ -70,6 +71,9 @@ export class SeedService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     await this.seedRoles();
     await this.seedAdminUser();
+    await this.seedStakeholderDemoUser();
+    await this.seedGerenciaDemoUser();
+    await this.seedConsultaDemoUser();
     await this.seedRequirementStatuses();
     await this.seedRequirementCategories();
   }
@@ -77,9 +81,16 @@ export class SeedService implements OnApplicationBootstrap {
   private async seedRoles() {
     for (const r of ROLES) {
       const exists = await this.rolesRepo.findOne({ where: { nombre: r.nombre } });
+      const defaults = DEFAULT_PERMISOS_POR_ROL[r.nombre];
       if (!exists) {
-        await this.rolesRepo.save(this.rolesRepo.create(r));
+        await this.rolesRepo.save(
+          this.rolesRepo.create({ ...r, permisos: defaults }),
+        );
         this.logger.log(`Rol creado: ${r.nombre}`);
+      } else if (!exists.permisos) {
+        exists.permisos = defaults;
+        await this.rolesRepo.save(exists);
+        this.logger.log(`Permisos por defecto aplicados al rol: ${r.nombre}`);
       }
     }
   }
@@ -103,6 +114,72 @@ export class SeedService implements OnApplicationBootstrap {
       }),
     );
     this.logger.log('Usuario admin creado: admin@healthplus.com / Admin@1234');
+  }
+
+  /** Usuario de rol stakeholder para demos y pruebas e2e (`E2E_INTEGRATION=1`). */
+  private async seedStakeholderDemoUser() {
+    const email = 'stakeholder@healthplus.com';
+    const exists = await this.usersRepo.findOne({ where: { email } });
+    if (exists) return;
+
+    const role = await this.rolesRepo.findOne({ where: { nombre: 'stakeholder' } });
+    if (!role) return;
+
+    const password = await bcrypt.hash('Stake@1234', 12);
+    await this.usersRepo.save(
+      this.usersRepo.create({
+        nombre: 'Stakeholder demo',
+        email,
+        password,
+        activo: true,
+        role,
+      }),
+    );
+    this.logger.log('Usuario stakeholder demo: stakeholder@healthplus.com / Stake@1234');
+  }
+
+  /** Rol gerencia: reportes ejecutivos; sin CRUD de requisitos (e2e / demos). */
+  private async seedGerenciaDemoUser() {
+    const email = 'gerencia@healthplus.com';
+    const exists = await this.usersRepo.findOne({ where: { email } });
+    if (exists) return;
+
+    const role = await this.rolesRepo.findOne({ where: { nombre: 'gerencia' } });
+    if (!role) return;
+
+    const password = await bcrypt.hash('Gerencia@1234', 12);
+    await this.usersRepo.save(
+      this.usersRepo.create({
+        nombre: 'Gerencia demo',
+        email,
+        password,
+        activo: true,
+        role,
+      }),
+    );
+    this.logger.log('Usuario gerencia demo: gerencia@healthplus.com / Gerencia@1234');
+  }
+
+  /** Rol consulta: solo reportes (misma matriz API que gerencia en reportes). */
+  private async seedConsultaDemoUser() {
+    const email = 'consulta@healthplus.com';
+    const exists = await this.usersRepo.findOne({ where: { email } });
+    if (exists) return;
+
+    const role = await this.rolesRepo.findOne({ where: { nombre: 'consulta' } });
+    if (!role) return;
+
+    const password = await bcrypt.hash('Consulta@1234', 12);
+    await this.usersRepo.save(
+      this.usersRepo.create({
+        nombre: 'Consulta demo',
+        email,
+        password,
+        activo: true,
+        role,
+      }),
+    );
+    this.logger.log('Usuario consulta demo: consulta@healthplus.com / Consulta@1234');
   }
 
   private async seedRequirementStatuses() {

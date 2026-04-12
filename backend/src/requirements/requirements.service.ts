@@ -50,6 +50,8 @@ export class RequirementsService {
     if (filters?.prioridad) qb.andWhere('r.prioridad = :p', { p: filters.prioridad });
     if (filters?.tipo) qb.andWhere('r.tipo = :t', { t: filters.tipo });
 
+    qb.loadRelationCountAndMap('r.adjuntosCount', 'r.attachments');
+
     return qb.orderBy('r.created_at', 'DESC').getMany();
   }
 

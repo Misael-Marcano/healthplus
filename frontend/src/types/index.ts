@@ -1,5 +1,15 @@
 export type UserRole = "administrador" | "analista" | "stakeholder" | "gerencia" | "consulta";
 
+/** Permisos configurables por rol (matriz usuarios / API). */
+export interface RolePermisos {
+  manageUsers: boolean;
+  createReq: boolean;
+  editReq: boolean;
+  validate: boolean;
+  reports: boolean;
+  settings: boolean;
+}
+
 export interface User {
   id: number;
   nombre: string;
@@ -65,6 +75,8 @@ export interface Requisito {
     menciones?: number[];
     autor: { id: number; nombre: string };
   }[];
+  /** Número de adjuntos (listado; viene del backend). */
+  adjuntosCount?: number;
   /** Adjuntos PDF / Word (detalle). */
   attachments?: {
     id: number;

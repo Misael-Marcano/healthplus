@@ -20,8 +20,8 @@ export function DashboardLayoutClient({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (isLoading || !user || !pathname) return;
-    if (!canAccessPath(user.rol, pathname)) {
-      router.replace(getDefaultLandingPath(user.rol));
+    if (!canAccessPath(user.rol, pathname, user.permisos)) {
+      router.replace(getDefaultLandingPath(user.rol, user.permisos));
     }
   }, [user, isLoading, pathname, router]);
 

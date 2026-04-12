@@ -20,6 +20,11 @@ export class RequirementValidation {
   @JoinColumn({ name: 'validador_id' })
   validador: User;
 
+  /** Usuario que solicitó la validación (analista / admin). */
+  @ManyToOne(() => User, { nullable: true, eager: true })
+  @JoinColumn({ name: 'solicitado_por_id' })
+  solicitadoPor: User | null;
+
   @Column({ default: 'pendiente' })
   estado: ValidationStatus;
 

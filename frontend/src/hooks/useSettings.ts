@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import api from "@/lib/api";
 
 export interface SystemSettingsPayload {
@@ -46,6 +47,7 @@ export function useUpdateSystemSettings() {
     mutationFn: (patch: SystemSettingsPatch) =>
       api.patch<SystemSettingsPayload>("/settings", patch).then((r) => r.data),
     onSuccess: (data) => {
+      toast.success("Configuración guardada");
       qc.setQueryData(KEY, data);
     },
   });

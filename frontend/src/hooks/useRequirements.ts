@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import api from "@/lib/api";
 import type { Requisito } from "@/types";
 
@@ -61,6 +62,10 @@ function normalizeRequirement(r: any): Requisito {
       typeof r.responsable === "object" ? (r.responsable?.nombre ?? "") : (r.responsable ?? ""),
     comments,
     attachments,
+    adjuntosCount:
+      typeof r.adjuntosCount === "number"
+        ? r.adjuntosCount
+        : Number(r.adjuntosCount ?? 0),
     // dates → ISO date string
     creadoEn:      r.creadoEn      ? String(r.creadoEn).split("T")[0]      : "",
     actualizadoEn: r.actualizadoEn ? String(r.actualizadoEn).split("T")[0] : "",
@@ -113,6 +118,7 @@ export function useCreateRequirement() {
     mutationFn: (dto: RequirementDto) =>
       api.post("/requirements", dto).then((r) => r.data),
     onSuccess: () => {
+      toast.success("Requisito creado");
       qc.invalidateQueries({ queryKey: [KEY] });
       qc.invalidateQueries({ queryKey: ["reports"] });
       qc.invalidateQueries({ queryKey: ["projects"] });
@@ -126,6 +132,7 @@ export function useUpdateRequirement() {
     mutationFn: ({ id, ...dto }: Partial<RequirementDto> & { id: number }) =>
       api.patch(`/requirements/${id}`, dto).then((r) => r.data),
     onSuccess: (_d, v) => {
+      toast.success("Requisito actualizado");
       qc.invalidateQueries({ queryKey: [KEY] });
       qc.invalidateQueries({ queryKey: [KEY, v.id] });
       qc.invalidateQueries({ queryKey: ["reports"] });
@@ -139,6 +146,7 @@ export function useDeleteRequirement() {
   return useMutation({
     mutationFn: (id: number) => api.delete(`/requirements/${id}`),
     onSuccess: () => {
+      toast.success("Requisito eliminado");
       qc.invalidateQueries({ queryKey: [KEY] });
       qc.invalidateQueries({ queryKey: ["reports"] });
       qc.invalidateQueries({ queryKey: ["projects"] });

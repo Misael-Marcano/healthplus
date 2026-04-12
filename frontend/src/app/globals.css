@@ -1,7 +1,11 @@
+/* Inter embebido (sin descarga en build; compatible con Docker sin salida a Internet) */
+@import "@fontsource-variable/inter/index.css";
+
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-inter: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter);
 
   /* ── Azules → paleta principal HealthPlus ── */
   --color-blue-50:  #EAF2F8;

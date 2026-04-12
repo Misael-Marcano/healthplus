@@ -11,6 +11,7 @@ import {
   LayoutDashboard, FileText, ArrowUpDown, CheckCircle,
   BarChart3, Settings, Users, FolderKanban, X, LogOut, ClipboardList,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 const navItems: { href: string; labelKey: MessageKey; icon: typeof LayoutDashboard }[] = [
   { href: "/dashboard",     labelKey: "nav.dashboard",     icon: LayoutDashboard },
@@ -34,7 +35,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { t } = useLocale();
-  const visibleNav = filterNavByRole(navItems, user?.rol);
+  const visibleNav = filterNavByRole(navItems, user?.rol, user?.permisos);
 
   return (
     <>
@@ -46,23 +47,26 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         open ? "translate-x-0" : "-translate-x-full",
       )}>
         <div className="flex items-center justify-between px-4 py-5 border-b border-[#D9E2EC]/80">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-[#2C5FA3] rounded-xl flex items-center justify-center shadow-sm">
-              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
-                <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 14a1 1 0 01-1-1v-3H8a1 1 0 010-2h3V8a1 1 0 012 0v3h3a1 1 0 010 2h-3v3a1 1 0 01-1 1z" />
-              </svg>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="shrink-0 w-9 h-9 rounded-xl bg-white border border-[#E5EAF1] shadow-sm flex items-center justify-center p-0.5">
+              <BrandLogo variant="mark" className="h-8 w-8" />
             </div>
-            <div className="leading-none">
-              <p className="text-sm font-semibold text-[#4B5563]">HealthPlus</p>
-              <p className="text-[10px] text-[#7A8798] mt-0.5">{t("brand.subtitle")}</p>
+            <div className="leading-none min-w-0">
+              <p className="text-sm font-semibold text-[#4B5563] truncate">HealthPlus</p>
+              <p className="text-[10px] text-[#7A8798] mt-0.5 truncate">{t("brand.subtitle")}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="lg:hidden p-1 rounded-lg hover:bg-white/60 text-[#7A8798]">
-            <X size={16} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="lg:hidden p-1 rounded-lg hover:bg-white/60 text-[#7A8798]"
+            aria-label={t("sidebar.closeMenu")}
+          >
+            <X size={16} aria-hidden />
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 px-2.5">
+        <nav className="flex-1 overflow-y-auto py-3 px-2.5" aria-label={t("nav.mainNavigation")}>
           <ul className="space-y-1">
             {visibleNav.map(({ href, labelKey, icon: Icon }) => {
               const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -71,6 +75,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   <Link
                     href={href}
                     onClick={onClose}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-2.5 rounded-[10px] px-3 min-h-[44px] text-sm font-medium transition-colors duration-200",
                       active
@@ -78,7 +83,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         : "text-[#4E6A8F] hover:bg-white/70 hover:text-[#2C5FA3]",
                     )}
                   >
-                    <Icon size={18} strokeWidth={1.75} className={active ? "text-white" : "text-[#4E6A8F]"} />
+                    <Icon size={18} strokeWidth={1.75} className={active ? "text-white" : "text-[#4E6A8F]"} aria-hidden />
                     {t(labelKey)}
                   </Link>
                 </li>
@@ -103,7 +108,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               title={t("auth.logout")}
               aria-label={t("auth.logout")}
             >
-              <LogOut size={15} strokeWidth={1.75} />
+              <LogOut size={15} strokeWidth={1.75} aria-hidden />
             </button>
           </div>
         </div>

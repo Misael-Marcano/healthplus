@@ -371,14 +371,6 @@ export function RequisitoDetallesPanel({
               )}
             </DetailField>
 
-            <DetailField label="Principal">
-              <span className="text-[13px] text-[#5E6C84]">Ninguno</span>
-            </DetailField>
-
-            <DetailField label="Sprint">
-              <span className="text-[13px] text-[#5E6C84]">Ninguno</span>
-            </DetailField>
-
             <DetailField label="Estimación (1–5)">
               {canWrite ? (
                 <JiraMenuDropdown

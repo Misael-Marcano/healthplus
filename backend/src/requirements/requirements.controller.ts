@@ -28,6 +28,7 @@ import { CreateRequirementDto } from './dto/create-requirement.dto';
 import { UpdateRequirementDto } from './dto/update-requirement.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { OrAnyPermiso } from '../common/decorators/or-any-permiso.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { User } from '../users/user.entity';
 
@@ -47,6 +48,7 @@ export class RequirementsController {
 
   @Get()
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Listar requisitos con filtros opcionales' })
   @ApiQuery({ name: 'projectId', required: false })
   @ApiQuery({ name: 'estado', required: false })
@@ -68,6 +70,7 @@ export class RequirementsController {
 
   @Get(':id/comments')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Comentarios del requisito (orden cronológico)' })
   listComments(@Param('id', ParseIntPipe) id: number) {
     return this.service.listComments(id);
@@ -75,6 +78,7 @@ export class RequirementsController {
 
   @Post(':id/comments')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Añadir comentario' })
   addComment(
     @Param('id', ParseIntPipe) id: number,
@@ -86,6 +90,7 @@ export class RequirementsController {
 
   @Get(':id/attachments')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Listar adjuntos (PDF / Word)' })
   listAttachments(@Param('id', ParseIntPipe) id: number) {
     return this.attachments.list(id);
@@ -93,6 +98,7 @@ export class RequirementsController {
 
   @Post(':id/attachments')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @UseInterceptors(FileInterceptor('file', ATTACHMENT_UPLOAD))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -113,6 +119,7 @@ export class RequirementsController {
 
   @Get(':id/attachments/:attachmentId/download')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Descargar adjunto' })
   async downloadAttachment(
     @Param('id', ParseIntPipe) id: number,
@@ -129,6 +136,7 @@ export class RequirementsController {
 
   @Delete(':id/attachments/:attachmentId')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Eliminar adjunto' })
   removeAttachment(
     @Param('id', ParseIntPipe) id: number,
@@ -140,6 +148,7 @@ export class RequirementsController {
 
   @Get(':id')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Obtener requisito con historial, validaciones y comentarios' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
@@ -147,6 +156,7 @@ export class RequirementsController {
 
   @Post()
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Crear requisito' })
   create(@Body() dto: CreateRequirementDto, @CurrentUser() user: User) {
     return this.service.create(dto, user);
@@ -154,6 +164,7 @@ export class RequirementsController {
 
   @Patch(':id')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Actualizar requisito' })
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -165,6 +176,7 @@ export class RequirementsController {
 
   @Delete(':id')
   @Roles('administrador', 'analista')
+  @OrAnyPermiso('createReq', 'editReq')
   @ApiOperation({ summary: 'Eliminar requisito (soft delete)' })
   remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: User) {
     return this.service.remove(id, user);

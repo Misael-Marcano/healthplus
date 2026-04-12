@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export const metadata: Metadata = {
   title: "Página no encontrada",
@@ -9,6 +10,9 @@ export const metadata: Metadata = {
 export default function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#EEF1F6] px-6 py-12">
+      <div className="mb-6 w-12 h-12 rounded-2xl bg-white border border-[#E5EAF1] shadow-sm flex items-center justify-center p-1">
+        <BrandLogo variant="mark" className="h-10 w-10" />
+      </div>
       <p className="text-sm font-medium text-[#7A8798]">404</p>
       <h1 className="mt-1 text-2xl font-semibold text-[#4B5563]">Página no encontrada</h1>
       <p className="mt-2 text-center text-sm text-[#7A8798] max-w-md">

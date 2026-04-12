@@ -1,0 +1,7 @@
+# Raíz — complementa backend/.gitignore y frontend/.gitignore
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.local
+.env.*.local
