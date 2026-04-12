@@ -1,18 +1,16 @@
 "use client";
 
 import { parseCommentText } from "@/lib/comment-mentions";
+import { MENTION_CHIP_CLASS } from "@/lib/mention-editable";
 
 function MentionChip({ displayName }: { displayName: string }) {
   const label = displayName.trim() || "Usuario";
   return (
     <span
-      className="inline-flex max-w-full align-baseline rounded-md border border-[#85B8FF] bg-[#E9F2FF] px-1.5 py-0.5 text-[0.8125rem] font-semibold leading-tight text-[#0747A6] shadow-[inset_0_-1px_0_rgba(9,30,66,0.08)]"
+      className={MENTION_CHIP_CLASS}
       title={`Mención a ${label}`}
     >
-      <span className="text-[#0052CC] opacity-90" aria-hidden>
-        @
-      </span>
-      <span className="truncate">{label}</span>
+      @{label}
     </span>
   );
 }

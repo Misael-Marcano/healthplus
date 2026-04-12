@@ -73,6 +73,7 @@ function UsuariosPageContent() {
   const [filtroEstado, setFiltroEstado] = useState<"" | "activo" | "inactivo">("");
   const [modalNuevo, setModalNuevo] = useState(false);
   const [editando,   setEditando]   = useState<User | null>(null);
+  const [confirmarDesactivar, setConfirmarDesactivar] = useState<User | null>(null);
 
   const { data: usuarios = [], isLoading } = useUsersAdmin();
   const { data: roles = [] } = useRoles();
@@ -123,13 +124,20 @@ function UsuariosPageContent() {
     );
   };
 
-  const handleDeactivate = (u: User) => {
+  const solicitarDesactivar = (u: User) => {
     if (currentUser?.id === u.id) {
       toast.error(t("users.cannotDeactivateSelf"));
       return;
     }
-    if (!confirm(t("users.deactivateConfirm"))) return;
-    deleteMutation.mutate(u.id);
+    setConfirmarDesactivar(u);
+  };
+
+  const ejecutarDesactivar = () => {
+    if (!confirmarDesactivar) return;
+    const id = confirmarDesactivar.id;
+    deleteMutation.mutate(id, {
+      onSuccess: () => setConfirmarDesactivar(null),
+    });
   };
 
   const handleActivate = (u: User) => {
@@ -285,7 +293,7 @@ function UsuariosPageContent() {
                               <button
                                 type="button"
                                 title={t("users.deactivate")}
-                                onClick={() => handleDeactivate(u)}
+                                onClick={() => solicitarDesactivar(u)}
                                 disabled={deleteMutation.isPending || currentUser?.id === u.id}
                                 className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-700 transition-colors disabled:opacity-40 disabled:pointer-events-none"
                               >
@@ -408,6 +416,51 @@ function UsuariosPageContent() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Confirmar desactivar usuario */}
+      <Modal
+        open={!!confirmarDesactivar}
+        onClose={() => !deleteMutation.isPending && setConfirmarDesactivar(null)}
+        title={t("users.deactivateModalTitle")}
+        size="sm"
+      >
+        {confirmarDesactivar && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 leading-relaxed">
+              {t("users.deactivateConfirm")}
+            </p>
+            <div className="rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+                <UserMinus size={20} strokeWidth={2} aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {confirmarDesactivar.nombre}
+                </p>
+                <p className="text-xs text-gray-500 truncate">{confirmarDesactivar.email}</p>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-1 border-t border-gray-100">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={deleteMutation.isPending}
+                onClick={() => setConfirmarDesactivar(null)}
+              >
+                {t("users.cancel")}
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                loading={deleteMutation.isPending}
+                onClick={ejecutarDesactivar}
+              >
+                {t("users.deactivate")}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Modal Editar Usuario */}

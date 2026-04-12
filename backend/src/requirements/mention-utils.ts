@@ -1,5 +1,9 @@
-/** Tokens tipo JIRA: @[Nombre visible](userId) — espacios opcionales alrededor del id */
-export const MENTION_TOKEN_REGEX = /@\[([^\]]*)\]\s*\(\s*(\d+)\s*\)/g;
+/**
+ * Tokens tipo JIRA: @[Nombre](userId) — tolerante a @ opcional y paréntesis tipográficos.
+ * Alineado con `comment-mentions.ts` en el frontend.
+ */
+export const MENTION_TOKEN_REGEX =
+  /(?:@)?\[([^\]]*)\]\s*[\(（]\s*(\d+)\s*[\)）]/g;
 
 export function extractMentionUserIds(texto: string): number[] {
   const ids: number[] = [];

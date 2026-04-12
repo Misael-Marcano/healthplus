@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, type ComponentType } from "react";
+import { useState, useEffect, type ComponentType } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,14 +9,14 @@ import {
   Loader2,
   MessageSquareText,
   Paperclip,
-  Pencil,
   FileText,
   History,
   ListTree,
   AlignLeft,
   CheckSquare,
 } from "lucide-react";
-import { useRequirement } from "@/hooks/useRequirements";
+import { toast } from "sonner";
+import { useRequirement, useUpdateRequirement } from "@/hooks/useRequirements";
 import { useRequirementVersions } from "@/hooks/useVersions";
 import { useAddRequirementComment } from "@/hooks/useRequirementComments";
 import {
@@ -35,6 +34,7 @@ import {
 import type { Requisito } from "@/types";
 import { CommentBody } from "@/components/requisitos/CommentBody";
 import { CommentMentionTextarea } from "@/components/requisitos/CommentMentionTextarea";
+import { RequisitoDetallesPanel } from "@/components/requisitos/RequisitoDetallesPanel";
 
 type TabId = "actividad" | "historial" | "adjuntos";
 
@@ -84,13 +84,16 @@ function SectionHeader({
 }
 
 export function RequisitoDetalleView({ requirementId }: { requirementId: number }) {
-  const router = useRouter();
   const { user } = useAuth();
   const canWrite = canWriteCoreEntities(user?.rol);
   const { data: req, isLoading, isError, isFetching } = useRequirement(requirementId);
   const { data: versions = [], isLoading: loadingV } = useRequirementVersions(requirementId);
   const [tab, setTab] = useState<TabId>("actividad");
   const [nuevoComentario, setNuevoComentario] = useState("");
+  const [draftTitulo, setDraftTitulo] = useState("");
+  const [draftDescripcion, setDraftDescripcion] = useState("");
+  const [draftCriterios, setDraftCriterios] = useState("");
+  const updateReq = useUpdateRequirement();
   const addComment = useAddRequirementComment();
   const uploadAtt = useUploadRequirementAttachment();
   const deleteAtt = useDeleteRequirementAttachment();
@@ -99,15 +102,73 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
   const adjuntos = req?.attachments ?? [];
   const ed = req ? displayEstado(req) : null;
 
+  useEffect(() => {
+    if (!req) return;
+    setDraftTitulo(req.titulo);
+    setDraftDescripcion(req.descripcion);
+    setDraftCriterios(req.criteriosAceptacion ?? "");
+  }, [req?.id, req?.titulo, req?.descripcion, req?.criteriosAceptacion]);
+
+  const guardarTitulo = async () => {
+    if (!req || !canWrite) return;
+    const t = draftTitulo.trim();
+    if (t === req.titulo) return;
+    if (t.length < 3) {
+      toast.error("El título debe tener al menos 3 caracteres.");
+      setDraftTitulo(req.titulo);
+      return;
+    }
+    try {
+      await updateReq.mutateAsync({ id: requirementId, titulo: t });
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar el título.");
+      setDraftTitulo(req.titulo);
+    }
+  };
+
+  const guardarDescripcion = async () => {
+    if (!req || !canWrite) return;
+    const d = draftDescripcion.trim();
+    if (d === req.descripcion.trim()) return;
+    if (d.length < 10) {
+      toast.error("La descripción debe tener al menos 10 caracteres.");
+      setDraftDescripcion(req.descripcion);
+      return;
+    }
+    try {
+      await updateReq.mutateAsync({ id: requirementId, descripcion: d });
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar la descripción.");
+      setDraftDescripcion(req.descripcion);
+    }
+  };
+
+  const guardarCriterios = async () => {
+    if (!req || !canWrite) return;
+    const c = draftCriterios.trim();
+    const prev = (req.criteriosAceptacion ?? "").trim();
+    if (c === prev) return;
+    try {
+      await updateReq.mutateAsync({
+        id: requirementId,
+        criteriosAceptacion: c.length ? c : "",
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error(
+        e instanceof Error ? e.message : "No se pudieron guardar los criterios.",
+      );
+      setDraftCriterios(req.criteriosAceptacion ?? "");
+    }
+  };
+
   const enviarComentario = async () => {
     const t = nuevoComentario.trim();
     if (!t || addComment.isPending) return;
     await addComment.mutateAsync({ requirementId, texto: t });
     setNuevoComentario("");
-  };
-
-  const irEditar = () => {
-    router.push(`/requisitos?edit=${requirementId}`);
   };
 
   if (isLoading && !req) {
@@ -139,49 +200,63 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
     isFetching && (tab === "actividad" || tab === "adjuntos");
 
   return (
+    <>
     <div className="min-h-[calc(100vh-72px)] bg-[#F7F8F9] w-full min-w-0">
       {/* Cabecera del issue — ancho completo del área de contenido (estilo Jira) */}
       <header className="bg-white border-b border-[#DFE1E6] w-full">
         <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3 border-b border-transparent">
-            <div className="flex items-center gap-2 min-w-0 text-sm">
-              <Link
-                href="/requisitos"
-                className="inline-flex items-center gap-1.5 font-medium text-[#5E6C84] hover:text-[#0052CC] shrink-0"
-              >
-                <ArrowLeft size={16} strokeWidth={2} />
-                Requisitos
-              </Link>
-            </div>
-            {canWrite && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={irEditar}
-                className="border-[#DFE1E6] bg-white hover:bg-[#F4F5F7] text-[#172B4D]"
-              >
-                <Pencil size={15} /> Editar
-              </Button>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+            <Link
+              href="/requisitos"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#5E6C84] hover:text-[#0052CC] shrink-0"
+            >
+              <ArrowLeft size={15} strokeWidth={2} className="opacity-90" />
+              Requisitos
+            </Link>
+            {canWrite && updateReq.isPending && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-[#5E6C84]">
+                <Loader2 size={14} className="animate-spin text-[#0052CC]" aria-hidden />
+                Guardando…
+              </span>
             )}
           </div>
 
-          <div className="py-5 space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-[#5E6C84]">
-              <span className="font-mono font-semibold text-[#0052CC] bg-[#DEEBFF] px-2 py-0.5 rounded">
+          <div className="pb-3.5 pt-0.5 space-y-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <span className="font-mono text-[11px] font-bold text-[#0747A6] bg-[#DEEBFF] px-1.5 py-0.5 rounded">
                 {req.codigo}
               </span>
-              <span className="text-[#DFE1E6]">·</span>
-              <span className="truncate max-w-[min(100%,280px)]" title={req.proyectoNombre}>
+              <span className="text-[#DFE1E6] select-none" aria-hidden>
+                ·
+              </span>
+              <span
+                className="text-[12px] text-[#5E6C84] truncate max-w-[min(100%,320px)]"
+                title={req.proyectoNombre}
+              >
                 {req.proyectoNombre}
               </span>
+              <span className="hidden sm:inline text-[#DFE1E6] select-none" aria-hidden>
+                ·
+              </span>
+              <div className="w-full sm:w-auto sm:flex-1 sm:min-w-0 sm:flex sm:justify-end sm:pl-2">
+                <IssueMetaRow req={req} ed={ed} />
+              </div>
             </div>
 
-            <h1 className="text-xl sm:text-2xl lg:text-[28px] font-semibold text-[#172B4D] leading-snug tracking-tight pr-2 max-w-[min(100%,56rem)]">
-              {req.titulo}
-            </h1>
-
-            <IssueMetaRow req={req} ed={ed} />
+            {canWrite ? (
+              <textarea
+                value={draftTitulo}
+                onChange={(e) => setDraftTitulo(e.target.value)}
+                onBlur={() => void guardarTitulo()}
+                rows={2}
+                className="w-full resize-y min-h-[2.75rem] rounded border border-transparent bg-white px-2 py-1.5 -mx-2 text-[17px] sm:text-lg font-semibold text-[#172B4D] leading-snug tracking-tight shadow-none outline-none transition-colors placeholder:text-[#97A0AF] hover:border-[#DFE1E6] focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/20"
+                aria-label="Título del requisito"
+              />
+            ) : (
+              <h1 className="text-[17px] sm:text-lg font-semibold text-[#172B4D] leading-snug tracking-tight pr-1">
+                {req.titulo}
+              </h1>
+            )}
           </div>
         </div>
       </header>
@@ -192,22 +267,53 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
           <div className="min-w-0">
             <IssueCard className="overflow-hidden">
               <SectionHeader icon={AlignLeft} title="Descripción" />
-              <div className="px-5 sm:px-6 py-4 sm:py-5">
-                <div className="prose prose-sm max-w-none text-[#172B4D] whitespace-pre-wrap leading-relaxed text-[15px]">
-                  {req.descripcion}
-                </div>
+              <div className="px-5 sm:px-6 py-4 sm:py-5 bg-[#FAFBFC]/40">
+                {canWrite ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={draftDescripcion}
+                      onChange={(e) => setDraftDescripcion(e.target.value)}
+                      onBlur={() => void guardarDescripcion()}
+                      rows={8}
+                      className="w-full min-h-[140px] resize-y rounded-md border border-[#DFE1E6] bg-white px-3 py-2.5 text-[15px] leading-relaxed text-[#172B4D] shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-[#97A0AF] hover:border-[#C1C7D0] focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/15"
+                      aria-label="Descripción"
+                    />
+                    <p className="text-[11px] text-[#5E6C84]">
+                      Los cambios se guardan al salir del campo. Mínimo 10 caracteres.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="max-w-none text-[15px] leading-relaxed text-[#172B4D]">
+                    <CommentBody texto={req.descripcion} />
+                  </div>
+                )}
               </div>
 
-              {req.criteriosAceptacion ? (
-                <>
-                  <SectionHeader icon={CheckSquare} title="Criterios de aceptación" />
-                  <div className="px-5 sm:px-6 py-4 sm:py-5 bg-[#FAFBFC]/50">
-                    <div className="text-sm text-[#172B4D] whitespace-pre-wrap leading-relaxed border-l-2 border-[#0052CC]/35 pl-4">
-                      {req.criteriosAceptacion}
-                    </div>
+              <SectionHeader icon={CheckSquare} title="Criterios de aceptación" />
+              <div className="px-5 sm:px-6 py-4 sm:py-5 bg-white">
+                {canWrite ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={draftCriterios}
+                      onChange={(e) => setDraftCriterios(e.target.value)}
+                      onBlur={() => void guardarCriterios()}
+                      rows={5}
+                      placeholder="Define criterios verificables (opcional)…"
+                      className="w-full min-h-[100px] resize-y rounded-md border border-[#DFE1E6] bg-[#FAFBFC] px-3 py-2.5 text-sm leading-relaxed text-[#172B4D] shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-[#97A0AF] hover:border-[#C1C7D0] focus:border-[#0052CC] focus:bg-white focus:ring-2 focus:ring-[#0052CC]/15"
+                      aria-label="Criterios de aceptación"
+                    />
+                    <p className="text-[11px] text-[#5E6C84]">
+                      Opcional. Se guarda al salir del campo.
+                    </p>
                   </div>
-                </>
-              ) : null}
+                ) : req.criteriosAceptacion?.trim() ? (
+                  <div className="text-sm text-[#172B4D] leading-relaxed border-l-[3px] border-[#0052CC]/40 pl-4">
+                    <CommentBody texto={req.criteriosAceptacion} />
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#5E6C84]">Sin criterios definidos.</p>
+                )}
+              </div>
 
               {/* Pestañas integradas en el mismo panel */}
               <div className="border-t border-[#DFE1E6] bg-[#FAFBFC]">
@@ -383,7 +489,9 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
                                   )}
                                 </div>
                                 <p className="text-sm font-semibold text-[#172B4D]">{v.titulo}</p>
-                                <p className="text-sm text-[#42526E] mt-1">{v.descripcion}</p>
+                                <div className="text-sm text-[#42526E] mt-1">
+                                  <CommentBody texto={v.descripcion} />
+                                </div>
                                 {v.motivoCambio && (
                                   <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
                                     <span className="font-semibold">Motivo: </span>
@@ -503,56 +611,18 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
             </IssueCard>
           </div>
 
-          {/* Panel lateral — campos tipo JIRA */}
+          {/* Panel lateral — edición inline tipo Jira */}
           <aside className="xl:sticky xl:top-20 space-y-4 min-w-0 w-full">
-            <IssueCard className="overflow-hidden">
-              <div className="px-4 py-3 border-b border-[#DFE1E6] bg-[#FAFBFC]">
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-[#5E6C84]">
-                  Detalles
-                </h2>
-              </div>
-              <div className="px-0 py-1">
-                <JiraField label="Estado" value={ed?.label ?? "–"} accent={ed?.variant} />
-                <JiraField
-                  label="Prioridad"
-                  value={prioridadConfig[req.prioridad]?.label ?? req.prioridad}
-                  accent={prioridadConfig[req.prioridad]?.variant}
-                />
-                <JiraField
-                  label="Tipo"
-                  value={req.tipo === "funcional" ? "Funcional" : "No funcional"}
-                />
-                <JiraField label="Proyecto" value={req.proyectoNombre || "–"} />
-                <JiraField label="Categoría" value={req.categoriaNombre || req.categoria || "–"} />
-                <JiraField label="Solicitante" value={req.solicitante || "–"} />
-                <JiraField label="Responsable" value={req.responsable || "–"} />
-                <JiraField label="Versión actual" value={`v${req.version}`} mono />
-                <JiraField
-                  label="Creado"
-                  value={
-                    req.creadoEn
-                      ? new Date(req.creadoEn).toLocaleDateString("es-DO", {
-                          dateStyle: "medium",
-                        })
-                      : "–"
-                  }
-                />
-                <JiraField
-                  label="Actualizado"
-                  value={
-                    req.actualizadoEn
-                      ? new Date(req.actualizadoEn).toLocaleDateString("es-DO", {
-                          dateStyle: "medium",
-                        })
-                      : "–"
-                  }
-                />
-              </div>
-            </IssueCard>
+            <RequisitoDetallesPanel
+              req={req}
+              requirementId={requirementId}
+              canWrite={canWrite}
+            />
           </aside>
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -563,57 +633,28 @@ function IssueMetaRow({
   req: Requisito;
   ed: ReturnType<typeof displayEstado> | null;
 }) {
+  const chip =
+    "inline-flex items-center rounded px-2 py-px text-[11px] font-semibold leading-tight border border-transparent";
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {ed && (
-        <Badge variant={ed.variant} className="font-medium px-2.5 py-0.5">
+        <Badge variant={ed.variant} className={`${chip} shadow-none`}>
           {ed.label}
         </Badge>
       )}
-      <Badge variant={prioridadConfig[req.prioridad]?.variant ?? "gray"} className="font-medium px-2.5 py-0.5">
+      <Badge variant={prioridadConfig[req.prioridad]?.variant ?? "gray"} className={`${chip} shadow-none`}>
         {prioridadConfig[req.prioridad]?.label}
       </Badge>
       <span
-        className={`inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium ${
+        className={`${chip} ${
           req.tipo === "funcional"
-            ? "bg-[#DEEBFF] text-[#0747A6]"
-            : "bg-[#EAE6FF] text-[#403294]"
+            ? "bg-[#DEEBFF] text-[#0747A6] border-[#B3D4FF]/60"
+            : "bg-[#EAE6FF] text-[#403294] border-[#C0B6F2]/50"
         }`}
       >
         {req.tipo === "funcional" ? "Funcional" : "No funcional"}
       </span>
-      <span className="text-xs text-[#5E6C84] tabular-nums">v{req.version}</span>
     </div>
   );
 }
 
-function JiraField({
-  label,
-  value,
-  mono,
-  accent,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  accent?: string;
-}) {
-  return (
-    <div className="flex gap-3 px-4 py-2.5 border-b border-[#EBECF0] last:border-b-0 hover:bg-[#FAFBFC]/80 transition-colors">
-      <dt className="text-xs text-[#5E6C84] font-medium w-[108px] xl:w-[120px] shrink-0 pt-0.5 leading-snug">
-        {label}
-      </dt>
-      <dd className="text-sm text-[#172B4D] min-w-0 flex-1 text-right break-words leading-snug">
-        {accent ? (
-          <span className="inline-flex items-center justify-end">
-            <Badge variant={accent as "default" | "success" | "warning" | "gray" | "danger" | "purple"}>
-              {value}
-            </Badge>
-          </span>
-        ) : (
-          <span className={mono ? "font-mono text-xs" : ""}>{value}</span>
-        )}
-      </dd>
-    </div>
-  );
-}

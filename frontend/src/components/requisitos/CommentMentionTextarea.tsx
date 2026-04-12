@@ -11,6 +11,12 @@ import {
 import { createPortal } from "react-dom";
 import { useUserLookup } from "@/hooks/useUsers";
 import { sanitizeMentionLabel } from "@/lib/comment-mentions";
+import {
+  fillEditableFromValue,
+  getCaretSerializedOffset,
+  serializeMentionEditable,
+  setCaretSerializedOffset,
+} from "@/lib/mention-editable";
 import { cn } from "@/lib/utils";
 
 interface MentionState {
@@ -30,7 +36,7 @@ interface Props {
 }
 
 const MAX_SUGGEST = 8;
-const MAX_LIST_PX = 192; // matches max-h-48
+const MAX_LIST_PX = 192;
 const POPOVER_Z = 10050;
 
 interface PopoverCoords {
@@ -50,7 +56,7 @@ export function CommentMentionTextarea({
   disabled,
   className,
 }: Props) {
-  const taRef = useRef<HTMLTextAreaElement>(null);
+  const editableRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const emptyRef = useRef<HTMLDivElement>(null);
   const { data: users = [] } = useUserLookup();
@@ -79,12 +85,12 @@ export function CommentMentionTextarea({
   const showPopover = showSuggestList || showEmptyHint;
 
   const updatePopoverPosition = useCallback(() => {
-    const ta = taRef.current;
-    if (!ta || !showPopover) {
+    const el = editableRef.current;
+    if (!el || !showPopover) {
       setPopoverPos(null);
       return;
     }
-    const rect = ta.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
     const margin = 6;
     const rowApprox = 44;
     const estimatedListH = showSuggestList
@@ -136,7 +142,7 @@ export function CommentMentionTextarea({
     if (!mention) return;
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (taRef.current?.contains(t)) return;
+      if (editableRef.current?.contains(t)) return;
       if (listRef.current?.contains(t)) return;
       if (emptyRef.current?.contains(t)) return;
       setMention(null);
@@ -144,6 +150,15 @@ export function CommentMentionTextarea({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [mention]);
+
+  /** Sincroniza desde el padre (p. ej. limpiar tras enviar) sin pisar mientras coincide con el DOM. */
+  useEffect(() => {
+    const el = editableRef.current;
+    if (!el || disabled) return;
+    const cur = serializeMentionEditable(el);
+    if (cur === value) return;
+    fillEditableFromValue(el, value);
+  }, [value, disabled]);
 
   const detectMention = useCallback(
     (text: string, cursor: number) => {
@@ -167,61 +182,91 @@ export function CommentMentionTextarea({
     [],
   );
 
+  const emitInput = useCallback(() => {
+    const el = editableRef.current;
+    if (!el) return;
+    let serialized = serializeMentionEditable(el);
+    if (serialized === "" && el.childNodes.length > 0) {
+      fillEditableFromValue(el, "");
+      serialized = "";
+    }
+    onChange(serialized);
+    const caret = getCaretSerializedOffset(el);
+    detectMention(serialized, caret);
+  }, [onChange, detectMention]);
+
   const insertMention = useCallback(
     (user: { id: number; nombre: string }) => {
-      if (!mention || !taRef.current) return;
-      const ta = taRef.current;
-      const cursor = ta.selectionStart ?? value.length;
-      const head = value.slice(0, mention.start);
-      const tail = value.slice(cursor);
+      if (!mention || !editableRef.current) return;
+      const el = editableRef.current;
+      const serialized = serializeMentionEditable(el);
+      const cursor = getCaretSerializedOffset(el);
+      const head = serialized.slice(0, mention.start);
+      const tail = serialized.slice(cursor);
       const safe = sanitizeMentionLabel(user.nombre);
       const insert = `@[${safe}](${user.id})`;
       const newVal = head + insert + tail;
       onChange(newVal);
+      fillEditableFromValue(el, newVal);
       setMention(null);
-      const pos = head.length + insert.length;
+      const pos = mention.start + insert.length;
       requestAnimationFrame(() => {
-        ta.focus();
-        ta.setSelectionRange(pos, pos);
+        el.focus();
+        setCaretSerializedOffset(el, pos);
       });
     },
-    [mention, onChange, value],
+    [mention, onChange],
   );
 
-  const onChangeInner = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const v = e.target.value;
-    const cursor = e.target.selectionStart ?? v.length;
-    onChange(v);
-    detectMention(v, cursor);
+  const onEditableInput = () => {
+    emitInput();
   };
 
-  const onSelectInner = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-    const ta = e.currentTarget;
-    detectMention(ta.value, ta.selectionStart ?? ta.value.length);
+  const onEditableKeyUp = () => {
+    const el = editableRef.current;
+    if (!el) return;
+    const serialized = serializeMentionEditable(el);
+    const caret = getCaretSerializedOffset(el);
+    detectMention(serialized, caret);
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!mention || filtered.length === 0) return;
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (mention && filtered.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setHighlight((h) => Math.min(h + 1, filtered.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setHighlight((h) => Math.max(h - 1, 0));
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        insertMention(filtered[highlight]!);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMention(null);
+        return;
+      }
+    }
 
-    if (e.key === "ArrowDown") {
+    if (e.key === "Enter") {
       e.preventDefault();
-      setHighlight((h) => Math.min(h + 1, filtered.length - 1));
+      document.execCommand("insertText", false, "\n");
+      emitInput();
       return;
     }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlight((h) => Math.max(h - 1, 0));
-      return;
-    }
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      insertMention(filtered[highlight]!);
-      return;
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      setMention(null);
-    }
+  };
+
+  const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    document.execCommand("insertText", false, text);
+    emitInput();
   };
 
   const portal =
@@ -287,6 +332,8 @@ export function CommentMentionTextarea({
       document.body,
     );
 
+  const minH = Math.max(80, rows * 22);
+
   return (
     <div className="flex flex-col gap-1">
       {label && (
@@ -295,24 +342,28 @@ export function CommentMentionTextarea({
         </label>
       )}
       <div className="relative">
-        <textarea
-          ref={taRef}
+        <div
+          ref={editableRef}
           id={id}
-          rows={rows}
-          value={value}
-          onChange={onChangeInner}
+          role="textbox"
+          aria-multiline
+          aria-placeholder={placeholder}
+          contentEditable={!disabled}
+          suppressContentEditableWarning
+          data-placeholder={placeholder ?? ""}
+          onInput={onEditableInput}
           onKeyDown={onKeyDown}
-          onClick={onSelectInner}
-          onKeyUp={onSelectInner}
-          disabled={disabled}
-          placeholder={placeholder}
-          autoComplete="off"
+          onKeyUp={onEditableKeyUp}
+          onClick={onEditableKeyUp}
+          onPaste={onPaste}
           className={cn(
-            "w-full rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#172B4D] placeholder:text-[#5E6C84] transition-colors resize-y min-h-[80px]",
-            "focus:border-[#0052CC] focus:outline-none focus:ring-2 focus:ring-[#0052CC]/25",
+            "w-full rounded-md border border-[#DFE1E6] bg-white px-3 py-2 text-sm text-[#172B4D] transition-colors outline-none",
+            "whitespace-pre-wrap break-words [overflow-wrap:anywhere]",
+            "focus:border-[#0052CC] focus:ring-2 focus:ring-[#0052CC]/25",
             "disabled:bg-[#F4F5F7] disabled:cursor-not-allowed",
             className,
           )}
+          style={{ minHeight: minH }}
         />
         {portal}
       </div>

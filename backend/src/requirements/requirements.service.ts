@@ -195,8 +195,15 @@ export class RequirementsService {
     Object.assign(req, rest);
 
     if (projectId != null) req.project = { id: projectId } as any;
-    if (solicitanteId != null) req.solicitante = { id: solicitanteId } as any;
-    if (responsableId != null) req.responsable = { id: responsableId } as any;
+
+    if (Object.prototype.hasOwnProperty.call(dto as object, 'solicitanteId')) {
+      if (solicitanteId == null) req.solicitante = null as any;
+      else req.solicitante = { id: solicitanteId } as any;
+    }
+    if (Object.prototype.hasOwnProperty.call(dto as object, 'responsableId')) {
+      if (responsableId == null) req.responsable = null as any;
+      else req.responsable = { id: responsableId } as any;
+    }
 
     if (statusDefId != null || estado != null) {
       const pid = req.project?.id ?? projectId;
