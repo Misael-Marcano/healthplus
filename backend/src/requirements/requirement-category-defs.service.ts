@@ -135,4 +135,37 @@ export class RequirementCategoryDefsService {
     }
     return null;
   }
+
+  async resolveManyForRequirement(
+    categoryDefIds: number[] | undefined,
+    categoriaSlugs: string[] | undefined,
+    projectId: number,
+  ): Promise<RequirementCategoryDef[]> {
+    const out: RequirementCategoryDef[] = [];
+    const seen = new Set<number>();
+
+    const ids = (categoryDefIds ?? [])
+      .map((n) => Number(n))
+      .filter((n) => Number.isInteger(n) && n > 0);
+    for (const id of ids) {
+      const row = await this.resolveForRequirement(id, undefined, projectId);
+      if (row && !seen.has(row.id)) {
+        seen.add(row.id);
+        out.push(row);
+      }
+    }
+
+    const slugs = (categoriaSlugs ?? [])
+      .map((s) => String(s).trim().toLowerCase())
+      .filter(Boolean);
+    for (const slug of slugs) {
+      const row = await this.resolveForRequirement(undefined, slug, projectId);
+      if (row && !seen.has(row.id)) {
+        seen.add(row.id);
+        out.push(row);
+      }
+    }
+
+    return out;
+  }
 }

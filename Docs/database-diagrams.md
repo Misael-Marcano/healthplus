@@ -21,6 +21,7 @@ erDiagram
   users ||--o{ projects : "responsable_id"
   users ||--o{ requirements : "solicitante_id"
   users ||--o{ requirements : "responsable_id"
+  users ||--o{ requirements : "created_by_user_id"
   projects ||--o{ requirements : "project_id"
   projects ||--o{ requirement_category_defs : "project_id"
   projects ||--o{ requirement_status_defs : "project_id"
@@ -81,6 +82,7 @@ erDiagram
     text descripcion
     string tipo
     string categoria
+    json categorias
     int category_def_id FK
     string prioridad
     int impacto
@@ -95,6 +97,7 @@ erDiagram
     int project_id FK
     int solicitante_id FK
     int responsable_id FK
+    int created_by_user_id FK
   }
 ```
 
@@ -220,7 +223,7 @@ erDiagram
 | `projects`                  | Proyectos; responsable opcional (`users`).                                         |
 | `requirement_category_defs` | Categorías de requisito (por proyecto o globales); único `(slug, project_id)`.     |
 | `requirement_status_defs`   | Estados configurables; único `(slug, project_id)`.                                 |
-| `requirements`              | Requisitos; núcleo del dominio.                                                    |
+| `requirements`              | Requisitos; núcleo del dominio. Incluye `created_by_user_id` (creador) y `categorias` (JSON, slugs múltiples). |
 | `requirement_versions`      | Historial de versiones de contenido.                                                 |
 | `requirement_validations`   | Validaciones por validador; opcional `solicitado_por_id` (quien pidió la validación). |
 | `requirement_comments`      | Comentarios; columna `menciones` (JSON array de IDs de usuarios).                  |

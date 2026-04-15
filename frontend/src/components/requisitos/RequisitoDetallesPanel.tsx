@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
@@ -11,12 +11,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { Requisito } from "@/types";
 import { useUpdateRequirement } from "@/hooks/useRequirements";
 import { useProjects } from "@/hooks/useProjects";
 import { useRequirementStatuses } from "@/hooks/useRequirementStatuses";
 import { useRequirementCategories } from "@/hooks/useRequirementCategories";
 import { useUserLookup } from "@/hooks/useUsers";
+import { useSystemSettings } from "@/hooks/useSettings";
 import { displayEstado, prioridadConfig } from "@/lib/requisitos-display";
 import type { BadgeVariant } from "@/lib/requisitos-display";
 import {
@@ -25,6 +27,7 @@ import {
   initialsFromName,
 } from "@/lib/jira-lozenge";
 import { JiraMenuDropdown, JiraUserMenuDropdown, type JiraMenuItem } from "./jira-dropdown";
+import { MotivoCambioModal } from "@/components/requisitos/MotivoCambioModal";
 
 function DetailField({
   label,
@@ -64,12 +67,15 @@ export function RequisitoDetallesPanel({
   canWrite: boolean;
 }) {
   const [detallesOpen, setDetallesOpen] = useState(true);
+  const [motivoModalOpen, setMotivoModalOpen] = useState(false);
+  const [pendingPatch, setPendingPatch] = useState<Record<string, unknown> | null>(null);
   const updateMutation = useUpdateRequirement();
   const pending = updateMutation.isPending;
   const { data: proyectos = [] } = useProjects();
   const { data: statuses = [], isLoading: loadingSt } = useRequirementStatuses(req.proyectoId);
   const { data: categories = [], isLoading: loadingCat } = useRequirementCategories(req.proyectoId);
   const { data: usuarios = [] } = useUserLookup();
+  const { data: settings } = useSystemSettings();
 
   const ed = displayEstado(req);
 
@@ -170,12 +176,37 @@ export function RequisitoDetallesPanel({
     () => (solicitanteIdStr ? usuarios.find((u) => String(u.id) === solicitanteIdStr) : undefined),
     [usuarios, solicitanteIdStr],
   );
+  const [categoriasSel, setCategoriasSel] = useState<string[]>([]);
+
+  useEffect(() => {
+    const slugs = (req.categorias?.length ? req.categorias : req.categoria ? [req.categoria] : [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+    setCategoriasSel(slugs);
+  }, [req.id, req.categoria, req.categorias]);
   const responsableUser = useMemo(
     () => (responsableIdStr ? usuarios.find((u) => String(u.id) === responsableIdStr) : undefined),
     [usuarios, responsableIdStr],
   );
 
   const patch = async (dto: Record<string, unknown>) => {
+    const opts = new Set(settings?.versionOpts ?? []);
+    const trigger = settings?.vtrigger ?? "descripcion";
+    const keys = Object.keys(dto);
+    const touchesTitulo = keys.includes("titulo");
+    const touchesContenido =
+      keys.includes("descripcion") || keys.includes("criteriosAceptacion");
+    const shouldAskMotivo =
+      opts.has("req_motivo") &&
+      (trigger === "cualquier" ||
+        (trigger === "titulo" && touchesTitulo) ||
+        (trigger === "descripcion" && touchesContenido));
+    if (shouldAskMotivo) {
+      setPendingPatch(dto);
+      setMotivoModalOpen(true);
+      return;
+    }
+
     try {
       await updateMutation.mutateAsync({
         id: requirementId,
@@ -184,6 +215,29 @@ export function RequisitoDetallesPanel({
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "No se pudo guardar el cambio.");
+    }
+  };
+
+  const closeMotivoModal = () => {
+    setPendingPatch(null);
+    setMotivoModalOpen(false);
+  };
+
+  const confirmPatchMotivo = async (motivo: string) => {
+    if (!pendingPatch) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: requirementId,
+        ...pendingPatch,
+        motivoCambio: motivo,
+      } as { id: number } & Record<string, unknown>);
+      setPendingPatch(null);
+      setMotivoModalOpen(false);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar el cambio.");
+      setPendingPatch(null);
+      setMotivoModalOpen(false);
     }
   };
 
@@ -199,6 +253,7 @@ export function RequisitoDetallesPanel({
   const catNombre = req.categoriaNombre || req.categoria || "";
 
   return (
+    <>
     <div className="rounded-md border border-[#DCDFE4] bg-white shadow-[0_1px_2px_rgba(9,30,66,0.08)]">
       {/* Fila superior: estado + acción rápida */}
       <div className="flex items-stretch gap-2 border-b border-[#DCDFE4] px-3 py-2.5">
@@ -297,9 +352,9 @@ export function RequisitoDetallesPanel({
                   label={req.tipo === "funcional" ? "Funcional" : "No funcional"}
                   variant={req.tipo === "funcional" ? "default" : "purple"}
                 />
-                {catNombre ? (
-                  <Chip label={catNombre} variant="gray" />
-                ) : null}
+                {(req.categorias?.length ? req.categorias : catNombre ? [catNombre] : []).map((cat) => (
+                  <Chip key={cat} label={cat} variant="gray" />
+                ))}
               </div>
             </DetailField>
 
@@ -355,19 +410,60 @@ export function RequisitoDetallesPanel({
               )}
             </DetailField>
 
-            <DetailField label="Categoría">
+            <DetailField label="Categorías">
               {canWrite ? (
-                <JiraMenuDropdown
-                  variant="neutral"
-                  ariaLabel="Categoría"
-                  value={categoryValue}
-                  items={categoriaItems}
-                  disabled={loadingCat}
-                  pending={pending}
-                  onChange={(v) => void patch({ categoryDefId: v ? Number(v) : 0 })}
-                />
+                <div className="space-y-2">
+                  <div className="rounded-lg border border-[#DCDFE4] bg-[#FAFBFC] px-2.5 py-2 max-h-40 overflow-y-auto">
+                    {!loadingCat && categories.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {categories.map((c) => {
+                          const checked = categoriasSel.includes(c.slug);
+                          return (
+                            <label
+                              key={c.id}
+                              className={cn(
+                                "flex items-center gap-2 rounded-md border px-2 py-1.5 text-[13px] transition-colors cursor-pointer",
+                                checked
+                                  ? "border-[#4C9AFF] bg-[#E9F2FF] text-[#0747A6]"
+                                  : "border-[#DFE1E6] bg-white text-[#172B4D] hover:bg-[#F4F5F7]",
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                className="h-4 w-4 rounded border-gray-300 text-[#0052CC] focus:ring-[#4C9AFF]"
+                                onChange={() => {
+                                  const next = checked
+                                    ? categoriasSel.filter((s) => s !== c.slug)
+                                    : [...categoriasSel, c.slug];
+                                  setCategoriasSel(next);
+                                  const ids = categories
+                                    .filter((row) => next.includes(row.slug))
+                                    .map((row) => row.id);
+                                  void patch({ categoryDefIds: ids, categoryDefId: ids[0] ?? 0 });
+                                }}
+                              />
+                              <span className="truncate">{c.nombre}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-[13px] text-[#5E6C84]">
+                        {loadingCat ? "Cargando…" : "Sin categorías"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[12px] text-[#5E6C84]">
+                    Guardado automático: los cambios se aplican al marcar o desmarcar.
+                  </p>
+                </div>
               ) : (
-                <span>{catNombre || "Ninguno"}</span>
+                <span>
+                  {req.categorias?.length
+                    ? req.categorias.join(", ")
+                    : catNombre || "Ninguna"}
+                </span>
               )}
             </DetailField>
 
@@ -452,6 +548,26 @@ export function RequisitoDetallesPanel({
               )}
             </DetailField>
 
+            <DetailField label="Creado por">
+              <div className="flex items-center gap-2">
+                {req.creadoPor?.nombre ? (
+                  <>
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#626F86] text-[10px] font-bold text-white"
+                      aria-hidden
+                    >
+                      {initialsFromName(req.creadoPor.nombre)}
+                    </span>
+                    <span className="min-w-0 truncate font-medium">{req.creadoPor.nombre}</span>
+                  </>
+                ) : (
+                  <span className="text-[13px] text-[#5E6C84]">
+                    No registrado (requisitos anteriores a este dato)
+                  </span>
+                )}
+              </div>
+            </DetailField>
+
             <DetailField label="Versión actual">
               <span className="font-mono text-[13px] text-[#42526E]">v{req.version}</span>
             </DetailField>
@@ -475,5 +591,16 @@ export function RequisitoDetallesPanel({
         </div>
       )}
     </div>
+
+    <MotivoCambioModal
+      open={motivoModalOpen}
+      onClose={closeMotivoModal}
+      title="Motivo del cambio"
+      description="La configuración del sistema exige un motivo para registrar este cambio en el historial."
+      confirmLabel="Guardar cambio"
+      isLoading={updateMutation.isPending}
+      onConfirm={confirmPatchMotivo}
+    />
+    </>
   );
 }

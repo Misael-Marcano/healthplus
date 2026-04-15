@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRequirement, useUpdateRequirement } from "@/hooks/useRequirements";
-import { useRequirementVersions } from "@/hooks/useVersions";
+import { useCreateVersion, useRequirementVersions } from "@/hooks/useVersions";
 import { useValidationsByRequirement } from "@/hooks/useValidation";
 import { useAddRequirementComment } from "@/hooks/useRequirementComments";
 import {
@@ -31,6 +31,7 @@ import {
 } from "@/hooks/useRequirementAttachments";
 import { useAuth } from "@/context/AuthContext";
 import { canWriteCoreEntities } from "@/lib/permissions";
+import { useSystemSettings } from "@/hooks/useSettings";
 import {
   displayEstado,
   prioridadConfig,
@@ -40,8 +41,15 @@ import type { Requisito } from "@/types";
 import { CommentBody } from "@/components/requisitos/CommentBody";
 import { CommentMentionTextarea } from "@/components/requisitos/CommentMentionTextarea";
 import { RequisitoDetallesPanel } from "@/components/requisitos/RequisitoDetallesPanel";
+import { MotivoCambioModal } from "@/components/requisitos/MotivoCambioModal";
 
 type TabId = "actividad" | "historial" | "adjuntos";
+
+type PendingMotivo =
+  | { kind: "register-version" }
+  | { kind: "update-titulo"; nuevo: string }
+  | { kind: "update-descripcion"; nuevo: string }
+  | { kind: "update-criterios"; nuevo: string };
 
 const validacionEstadoUi: Record<
   "pendiente" | "aprobado" | "rechazado" | "comentado",
@@ -119,6 +127,8 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
   const canWrite = canWriteCoreEntities(user?.rol, user?.permisos);
   const { data: req, isLoading, isError, isFetching } = useRequirement(requirementId);
   const { data: versions = [], isLoading: loadingV } = useRequirementVersions(requirementId);
+  const createVersion = useCreateVersion(requirementId);
+  const { data: settings } = useSystemSettings();
   const { data: validacionesReq = [], isLoading: loadingVal } =
     useValidationsByRequirement(requirementId);
   const [tab, setTab] = useState<TabId>("actividad");
@@ -130,6 +140,8 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
   const addComment = useAddRequirementComment();
   const uploadAtt = useUploadRequirementAttachment();
   const deleteAtt = useDeleteRequirementAttachment();
+  const [motivoModalOpen, setMotivoModalOpen] = useState(false);
+  const [pendingMotivo, setPendingMotivo] = useState<PendingMotivo | null>(null);
 
   const comentarios = req?.comments ?? [];
   const adjuntos = req?.attachments ?? [];
@@ -142,6 +154,71 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
     setDraftCriterios(req.criteriosAceptacion ?? "");
   }, [req?.id, req?.titulo, req?.descripcion, req?.criteriosAceptacion]);
 
+  const requiresMotivoForKeys = (keys: string[]): boolean => {
+    const opts = new Set(settings?.versionOpts ?? []);
+    if (!opts.has("req_motivo")) return false;
+    const trigger = settings?.vtrigger ?? "descripcion";
+    const touchesTitulo = keys.includes("titulo");
+    const touchesContenido =
+      keys.includes("descripcion") || keys.includes("criteriosAceptacion");
+    return (
+      trigger === "cualquier" ||
+      (trigger === "titulo" && touchesTitulo) ||
+      (trigger === "descripcion" && touchesContenido)
+    );
+  };
+
+  const revertPendingDrafts = () => {
+    if (!req) return;
+    if (!pendingMotivo) return;
+    if (pendingMotivo.kind === "update-titulo") setDraftTitulo(req.titulo);
+    if (pendingMotivo.kind === "update-descripcion") setDraftDescripcion(req.descripcion);
+    if (pendingMotivo.kind === "update-criterios") {
+      setDraftCriterios(req.criteriosAceptacion ?? "");
+    }
+  };
+
+  const closeMotivoModal = () => {
+    revertPendingDrafts();
+    setPendingMotivo(null);
+    setMotivoModalOpen(false);
+  };
+
+  const handleMotivoConfirm = async (motivo: string) => {
+    if (!pendingMotivo || !req) return;
+    try {
+      if (pendingMotivo.kind === "register-version") {
+        await createVersion.mutateAsync(motivo);
+      } else if (pendingMotivo.kind === "update-titulo") {
+        await updateReq.mutateAsync({
+          id: requirementId,
+          titulo: pendingMotivo.nuevo,
+          motivoCambio: motivo,
+        });
+      } else if (pendingMotivo.kind === "update-descripcion") {
+        await updateReq.mutateAsync({
+          id: requirementId,
+          descripcion: pendingMotivo.nuevo,
+          motivoCambio: motivo,
+        });
+      } else if (pendingMotivo.kind === "update-criterios") {
+        await updateReq.mutateAsync({
+          id: requirementId,
+          criteriosAceptacion: pendingMotivo.nuevo,
+          motivoCambio: motivo,
+        });
+      }
+      setPendingMotivo(null);
+      setMotivoModalOpen(false);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "No se pudo completar la acción.");
+      revertPendingDrafts();
+      setPendingMotivo(null);
+      setMotivoModalOpen(false);
+    }
+  };
+
   const guardarTitulo = async () => {
     if (!req || !canWrite) return;
     const t = draftTitulo.trim();
@@ -152,6 +229,11 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
       return;
     }
     try {
+      if (requiresMotivoForKeys(["titulo"])) {
+        setPendingMotivo({ kind: "update-titulo", nuevo: t });
+        setMotivoModalOpen(true);
+        return;
+      }
       await updateReq.mutateAsync({ id: requirementId, titulo: t });
     } catch (e) {
       console.error(e);
@@ -170,6 +252,11 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
       return;
     }
     try {
+      if (requiresMotivoForKeys(["descripcion"])) {
+        setPendingMotivo({ kind: "update-descripcion", nuevo: d });
+        setMotivoModalOpen(true);
+        return;
+      }
       await updateReq.mutateAsync({ id: requirementId, descripcion: d });
     } catch (e) {
       console.error(e);
@@ -184,6 +271,14 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
     const prev = (req.criteriosAceptacion ?? "").trim();
     if (c === prev) return;
     try {
+      if (requiresMotivoForKeys(["criteriosAceptacion"])) {
+        setPendingMotivo({
+          kind: "update-criterios",
+          nuevo: c.length ? c : "",
+        });
+        setMotivoModalOpen(true);
+        return;
+      }
       await updateReq.mutateAsync({
         id: requirementId,
         criteriosAceptacion: c.length ? c : "",
@@ -202,6 +297,12 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
     if (!t || addComment.isPending) return;
     await addComment.mutateAsync({ requirementId, texto: t });
     setNuevoComentario("");
+  };
+
+  const abrirRegistrarVersion = () => {
+    if (!canWrite || createVersion.isPending) return;
+    setPendingMotivo({ kind: "register-version" });
+    setMotivoModalOpen(true);
   };
 
   if (isLoading && !req) {
@@ -564,11 +665,24 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
 
                 {tab === "historial" && (
                   <div>
-                    <div className="flex items-center gap-2 px-5 sm:px-6 py-3 border-b border-[#EBECF0] bg-white">
-                      <ListTree size={16} className="text-[#5E6C84]" aria-hidden />
-                      <h2 className="text-xs font-semibold uppercase tracking-wide text-[#5E6C84]">
-                        Versiones del requisito
-                      </h2>
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-5 sm:px-6 py-3 border-b border-[#EBECF0] bg-white">
+                      <div className="flex items-center gap-2">
+                        <ListTree size={16} className="text-[#5E6C84]" aria-hidden />
+                        <h2 className="text-xs font-semibold uppercase tracking-wide text-[#5E6C84]">
+                          Versiones del requisito
+                        </h2>
+                      </div>
+                      {canWrite && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          loading={createVersion.isPending}
+                          onClick={() => abrirRegistrarVersion()}
+                          className="bg-[#0052CC] hover:bg-[#0747A6] text-white border-0"
+                        >
+                          Registrar versión
+                        </Button>
+                      )}
                     </div>
                     <div className="p-5 sm:p-6 space-y-3">
                       {loadingV ? (
@@ -734,6 +848,31 @@ export function RequisitoDetalleView({ requirementId }: { requirementId: number 
         </div>
       </div>
     </div>
+
+    <MotivoCambioModal
+      open={motivoModalOpen}
+      onClose={closeMotivoModal}
+      title={
+        pendingMotivo?.kind === "register-version"
+          ? "Registrar versión en el historial"
+          : "Motivo del cambio"
+      }
+      description={
+        pendingMotivo?.kind === "register-version"
+          ? "Se guardará una copia del estado actual del requisito en el historial de versiones."
+          : "La configuración del sistema exige un motivo para registrar este cambio en el historial."
+      }
+      placeholder={
+        pendingMotivo?.kind === "register-version"
+          ? "Describe por qué registras esta versión…"
+          : "Describe el motivo del cambio…"
+      }
+      confirmLabel={
+        pendingMotivo?.kind === "register-version" ? "Registrar versión" : "Guardar cambio"
+      }
+      isLoading={createVersion.isPending || updateReq.isPending}
+      onConfirm={handleMotivoConfirm}
+    />
     </>
   );
 }
@@ -747,6 +886,11 @@ function IssueMetaRow({
 }) {
   const chip =
     "inline-flex items-center rounded px-2 py-px text-[11px] font-semibold leading-tight border border-transparent";
+  const cats = req.categorias?.length
+    ? req.categorias
+    : req.categoria
+      ? [req.categoria]
+      : [];
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {ed && (
@@ -766,6 +910,15 @@ function IssueMetaRow({
       >
         {req.tipo === "funcional" ? "Funcional" : "No funcional"}
       </span>
+      {cats.map((cat) => (
+        <span
+          key={cat}
+          className={`${chip} bg-[#EBECF0] text-[#42526E] border-[#DFE1E6]`}
+          title={cat}
+        >
+          {cat}
+        </span>
+      ))}
     </div>
   );
 }

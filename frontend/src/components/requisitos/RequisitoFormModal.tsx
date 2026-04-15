@@ -29,7 +29,7 @@ const reqSchema = z.object({
   descripcion: z.string().min(10, "Mínimo 10 caracteres"),
   projectId: z.string().min(1, "Selecciona un proyecto"),
   tipo: z.enum(["funcional", "no_funcional"]),
-  categoryDefId: z.string().optional(),
+  categoryDefIds: z.array(z.string()).optional(),
   prioridad: z.enum(["critica", "alta", "media", "baja"]),
   statusDefId: z.string().min(1, "Selecciona un estado"),
   criteriosAceptacion: z.string().optional(),
@@ -76,7 +76,7 @@ export function RequisitoFormModal({
       tipo: "funcional",
       prioridad: "media",
       statusDefId: "",
-      categoryDefId: "",
+      categoryDefIds: [],
     },
   });
 
@@ -96,7 +96,7 @@ export function RequisitoFormModal({
         tipo: "funcional",
         prioridad: "media",
         statusDefId: "",
-        categoryDefId: "",
+        categoryDefIds: [],
         projectId: "",
       });
     }
@@ -112,8 +112,7 @@ export function RequisitoFormModal({
       descripcion: requirement.descripcion,
       projectId: String(requirement.proyectoId ?? ""),
       tipo: requirement.tipo,
-      categoryDefId:
-        requirement.categoryDefId != null ? String(requirement.categoryDefId) : "",
+      categoryDefIds: [],
       prioridad: requirement.prioridad,
       statusDefId: requirement.statusDefId != null ? String(requirement.statusDefId) : "",
       criteriosAceptacion: requirement.criteriosAceptacion ?? "",
@@ -152,12 +151,20 @@ export function RequisitoFormModal({
   useEffect(() => {
     if (!open || !isEdit || !requirement || !watchProjectId || loadingCategoriesForm) return;
     if (categoriesForm.length === 0) return;
-    const cur = watch("categoryDefId");
-    if (cur) return;
-    const slug = requirement.categoria?.trim();
-    if (!slug) return;
-    const match = categoriesForm.find((c) => c.slug === slug);
-    if (match) setValue("categoryDefId", String(match.id));
+    const current = watch("categoryDefIds") ?? [];
+    if (current.length > 0) return;
+    const slugs = (requirement.categorias?.length
+      ? requirement.categorias
+      : requirement.categoria
+        ? [requirement.categoria]
+        : [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!slugs.length) return;
+    const ids = categoriesForm
+      .filter((c) => slugs.includes(c.slug))
+      .map((c) => String(c.id));
+    if (ids.length) setValue("categoryDefIds", ids);
   }, [
     open,
     isEdit,
@@ -170,12 +177,16 @@ export function RequisitoFormModal({
   ]);
 
   const onSubmit = async (data: ReqForm) => {
+    const selectedCategoryIds = (data.categoryDefIds ?? [])
+      .map((v) => Number(v))
+      .filter((n) => Number.isInteger(n) && n > 0);
     const payload = {
       titulo: data.titulo,
       descripcion: data.descripcion,
       projectId: Number(data.projectId),
       tipo: data.tipo,
-      categoryDefId: Number(data.categoryDefId) || 0,
+      categoryDefId: selectedCategoryIds[0] ?? 0,
+      categoryDefIds: selectedCategoryIds,
       prioridad: data.prioridad,
       statusDefId: Number(data.statusDefId),
       criteriosAceptacion: data.criteriosAceptacion || undefined,
@@ -270,19 +281,32 @@ export function RequisitoFormModal({
             disabled={!watchProjectId || loadingStatusesForm}
             {...register("statusDefId")}
           />
-          <Select
-            label="Categoría"
-            id="categoryDefId"
-            placeholder={
-              !watchProjectId ? "Primero elige proyecto" : loadingCategoriesForm ? "Cargando…" : "Sin categoría"
-            }
-            options={[
-              { value: "", label: "Sin categoría" },
-              ...categoriesForm.map((c) => ({ value: String(c.id), label: c.nombre })),
-            ]}
-            disabled={!watchProjectId || loadingCategoriesForm}
-            {...register("categoryDefId")}
-          />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Categorías</label>
+            <div className="rounded-lg border border-gray-300 bg-white px-3 py-2 min-h-[42px]">
+              {!watchProjectId ? (
+                <p className="text-sm text-gray-500">Primero elige proyecto</p>
+              ) : loadingCategoriesForm ? (
+                <p className="text-sm text-gray-500">Cargando…</p>
+              ) : categoriesForm.length === 0 ? (
+                <p className="text-sm text-gray-500">Sin categorías</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  {categoriesForm.map((c) => (
+                    <label key={c.id} className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        value={String(c.id)}
+                        disabled={!watchProjectId || loadingCategoriesForm}
+                        {...register("categoryDefIds")}
+                      />
+                      <span>{c.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select

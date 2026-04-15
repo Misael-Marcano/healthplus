@@ -46,6 +46,8 @@ export interface Requisito {
   tipo: TipoRequisito;
   /** Slug de categoría (catálogo). */
   categoria: string;
+  /** Slugs de categorías múltiples (si aplica). */
+  categorias?: string[];
   /** Nombre legible de la categoría (catálogo). */
   categoriaNombre?: string;
   categoryDefId?: number;
@@ -65,6 +67,8 @@ export interface Requisito {
   responsable: string;
   criteriosAceptacion: string;
   version: number;
+  /** Usuario que dio de alta el requisito; no se modifica tras la creación. */
+  creadoPor?: { id: number; nombre: string } | null;
   creadoEn: string;
   actualizadoEn: string;
   comments?: {

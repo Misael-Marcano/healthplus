@@ -320,6 +320,21 @@ function RequisitosPageContent() {
                         <p className="text-xs text-gray-400 mt-0.5 capitalize">
                           {req.tipo === "no_funcional" ? "No funcional" : "Funcional"}
                         </p>
+                        {((req.categorias?.length ?? 0) > 0 || req.categoria) && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {(req.categorias?.length ? req.categorias : req.categoria ? [req.categoria] : [])
+                              .slice(0, 3)
+                              .map((cat) => (
+                                <span
+                                  key={cat}
+                                  className="inline-flex items-center rounded bg-[#EBECF0] px-1.5 py-0.5 text-[10px] font-medium text-[#42526E]"
+                                  title={cat}
+                                >
+                                  {cat}
+                                </span>
+                              ))}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <p className="text-sm text-gray-600 max-w-[160px] truncate">{req.proyectoNombre}</p>

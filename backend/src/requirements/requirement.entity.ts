@@ -38,6 +38,10 @@ export class Requirement {
   @Column({ type: 'varchar', length: 100, nullable: true })
   categoria: string | null;
 
+  /** Slugs de categorías múltiples (compat: `categoria` conserva la principal). */
+  @Column({ type: 'simple-json', nullable: true })
+  categorias: string[] | null;
+
   @ManyToOne(() => RequirementCategoryDef, { nullable: true, eager: true })
   @JoinColumn({ name: 'category_def_id' })
   categoryDef: RequirementCategoryDef | null;
@@ -86,6 +90,11 @@ export class Requirement {
   @ManyToOne(() => User, { nullable: true, eager: true })
   @JoinColumn({ name: 'responsable_id' })
   responsable: User;
+
+  /** Usuario que dio de alta el requisito; no se modifica tras la creación. */
+  @ManyToOne(() => User, { nullable: true, eager: true })
+  @JoinColumn({ name: 'created_by_user_id' })
+  creadoPor: User | null;
 
   @OneToMany(() => RequirementVersion, (v) => v.requirement, { cascade: true })
   versions: RequirementVersion[];

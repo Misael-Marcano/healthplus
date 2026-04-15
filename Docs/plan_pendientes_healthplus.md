@@ -95,6 +95,18 @@ Referencia: calidad y restricciones de operación.
 
 ---
 
+## P2 — Historial de versiones (alineación real con cambios)
+
+- [x] **Fase 1 (backend): numeración consistente de versiones** — `POST /api/requirements/:id/versions` calcula `nextVersion` desde `MAX(requirement_versions.version)` por requisito y sincroniza `requirements.version` al crear la versión.
+- [x] **Fase 1 (backend): protección de datos de versión** — validación de motivo obligatorio (trim / vacío) antes de guardar el registro de versión.
+- [x] **Fase 2 (frontend): flujo manual de versionado en detalle** — en pestaña **Historial** se agregó acción “Registrar versión”, solicitud de motivo y refresco de historial/requisito por invalidaciones React Query.
+- [x] **Fase 2 (frontend): feedback UX** — botón con estado de carga y mensajes de error cuando no se pueda registrar versión.
+- [x] **Fase 3 (backend+frontend): gatillo automático en edición** — `PATCH /requirements/:id` ya crea snapshot automático según `settings.vtrigger` (`descripcion`, `titulo`, `manual`, `cualquier`).
+- [x] **Fase 3 (backend+frontend): aplicar `settings.versionOpts`** — `req_motivo` (obligatorio cuando aplica), `notif_cambio` (correo a participantes del requisito si hay SMTP) y `hist_completo` (auditoría con delta campo a campo) implementados.
+- [ ] **Fase 4 (qa/reportes): pruebas de punta a punta** — crear/editar requisito, validar aparición en historial (`GET /versions`) y exportación `reports/versions`. Estado actual: build backend/frontend OK; `npm run test` backend OK; `npm run test:e2e` quedó omitido por bandera de integración (`E2E_INTEGRATION`).
+
+---
+
 ## P2 — Requisitos: estados, comentarios y adjuntos (nuevo alcance)
 
 - [x] **Catálogo de estados configurable** — entidad `RequirementStatusDef` (global y por `projectId`), seed de estados por defecto; API `GET/POST/PATCH/DELETE /api/requirement-statuses`; requisitos enlazan `status_def_id` + slug `estado`.

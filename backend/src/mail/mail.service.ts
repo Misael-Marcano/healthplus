@@ -181,4 +181,65 @@ export class MailService {
       return { sent: false, error: msg };
     }
   }
+
+  /** Notifica creación de versión de un requisito (manual o automática). */
+  async sendRequirementVersionCreatedEmail(
+    to: string,
+    params: {
+      destinatarioNombre: string;
+      requisitoCodigo: string;
+      requisitoTitulo: string;
+      version: number;
+      motivoCambio: string;
+      actorNombre: string;
+      detailUrl: string;
+    },
+  ): Promise<SendMailResult> {
+    const transport = await this.buildTransport();
+    if (!transport) {
+      return { sent: false, error: 'SMTP no configurado' };
+    }
+
+    const from = await this.resolveFromAddress();
+    const subject = `Nueva versión ${params.requisitoCodigo} v${params.version} · HealthPlus`;
+    const text = [
+      `Hola ${params.destinatarioNombre},`,
+      '',
+      `Se registró una nueva versión del requisito ${params.requisitoCodigo} (v${params.version}).`,
+      `Título: ${params.requisitoTitulo}`,
+      `Motivo: ${params.motivoCambio}`,
+      `Registrado por: ${params.actorNombre}`,
+      '',
+      `Ver detalle:`,
+      params.detailUrl,
+    ].join('\n');
+
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const href = params.detailUrl.replace(/&/g, '&amp;');
+    const html = `
+      <p>Hola <strong>${esc(params.destinatarioNombre)}</strong>,</p>
+      <p>Se registró una nueva versión del requisito <strong>${esc(params.requisitoCodigo)}</strong> (v${params.version}).</p>
+      <p><strong>Título:</strong> ${esc(params.requisitoTitulo)}</p>
+      <p><strong>Motivo:</strong> ${esc(params.motivoCambio)}</p>
+      <p><strong>Registrado por:</strong> ${esc(params.actorNombre)}</p>
+      <p><a href="${href}">Ver detalle del requisito</a></p>
+      <p style="color:#64748b;font-size:12px;">Mensaje automático de HealthPlus.</p>
+    `.trim();
+
+    try {
+      await transport.sendMail({
+        from: `"HealthPlus" <${from}>`,
+        to,
+        subject,
+        text,
+        html,
+      });
+      return { sent: true };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.log.warn(`Envío correo nueva versión fallido: ${msg}`);
+      return { sent: false, error: msg };
+    }
+  }
 }

@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsIn, IsInt, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsIn,
+  IsInt,
+  Min,
+  Max,
+  IsArray,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateRequirementDto {
@@ -19,6 +28,25 @@ export class CreateRequirementDto {
   @Type(() => Number)
   @IsInt()
   categoryDefId?: number;
+
+  @ApiPropertyOptional({
+    description: 'IDs de categorías del catálogo (multi-categoría)',
+    type: [Number],
+  })
+  @IsOptional()
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  categoryDefIds?: number[];
+
+  @ApiPropertyOptional({
+    description: 'Slugs de categorías (fallback cuando no se envían IDs)',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categorias?: string[];
   @ApiPropertyOptional() @IsIn(['critica','alta','media','baja']) @IsOptional() prioridad?: string;
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(5) impacto?: number;
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(5) urgencia?: number;

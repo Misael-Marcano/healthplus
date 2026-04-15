@@ -52,6 +52,11 @@ function normalizeRequirement(r: any): Requisito {
     categoriaNombre: r.categoriaNombre ?? r.categoryDef?.nombre,
     categoryDefId: r.categoryDefId ?? r.categoryDef?.id,
     categoria: r.categoria ?? r.categoryDef?.slug ?? "",
+    categorias: Array.isArray(r.categorias)
+      ? r.categorias.map((x: unknown) => String(x))
+      : r.categoria
+        ? [String(r.categoria)]
+        : [],
     // project relation → flat fields
     proyectoId:     r.proyectoId     ?? r.project?.id,
     proyectoNombre: r.proyectoNombre ?? r.project?.nombre ?? "",
@@ -60,6 +65,10 @@ function normalizeRequirement(r: any): Requisito {
       typeof r.solicitante === "object" ? (r.solicitante?.nombre ?? "") : (r.solicitante ?? ""),
     responsable:
       typeof r.responsable === "object" ? (r.responsable?.nombre ?? "") : (r.responsable ?? ""),
+    creadoPor:
+      r.creadoPor && typeof r.creadoPor === "object"
+        ? { id: Number(r.creadoPor.id), nombre: String(r.creadoPor.nombre ?? "") }
+        : null,
     comments,
     attachments,
     adjuntosCount:
@@ -110,6 +119,9 @@ interface RequirementDto extends Partial<Requisito> {
   responsableId?: number;
   statusDefId?: number;
   categoryDefId?: number;
+  categoryDefIds?: number[];
+  categorias?: string[];
+  motivoCambio?: string;
 }
 
 export function useCreateRequirement() {
